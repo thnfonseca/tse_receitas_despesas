@@ -1,0 +1,44 @@
+---
+title: "download.tse"
+author: "FONSECA, T. N."
+date: "1 de abril de 2018"
+output: html_document
+---
+
+# Download dos bancos de receita e despesa do TSE
+
+Neste screapt, vamos baixar os bancos de dados fornecidos pelo TSE sobre receita e despesa de candidatos e partidos. Os bancos envolvem eleições gerais (federais e estaduais) e municipais desde 2002. O TSE não dispõe de dados de receita e despesa anteriores a 2002.
+
+Antes de baixar os dados, selecionamos o diretório em que os bancos serão baixados. No caso, baixaremos na pasta do nosso projeto, `tse_receitas_despesas`. Dentro desta pasta, os bancos serão divididos em outras pastas que correspondem ao ano eleitoral da despesa e da receita.
+```{r eval=FALSE}
+dir.proj <- "C:~/tse_receitas_despesas"
+```
+```{r results=FALSE, echo=FALSE}
+dir.proj <- "C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas"
+```
+
+
+O looping a seguir baixa os bancos no formato oferecido pelo TSE, dispondo-os em pastas dentro da pasta do projeto. Os bancos serão divididos em pastas segundo o ano eleitoral.
+```{r }
+anos<-c("2016", "2014", "2012", "2010", "2008", "2006", "2004", "2002")
+
+for(i in anos){
+  print(paste("Baixando dados de", i))
+  banco <- tempfile() #Cria uma pasta temporária
+  if(i=="2016"){url<-"http://agencia.tse.jus.br/estatistica/sead/odsele/prestacao_contas/prestacao_contas_final_ANO.zip"}
+  if(i=="2014"|i=="2012"){url<-"http://agencia.tse.jus.br/estatistica/sead/odsele/prestacao_contas/prestacao_final_ANO.zip"}
+  if(i=="2010"|i=="2008"|i=="2006"|i=="2004"|i=="2002"){url<-"http://agencia.tse.jus.br/estatistica/sead/odsele/prestacao_contas/prestacao_contas_ANO.zip"}
+
+  url<-gsub("ANO", i, url)
+  # Se o ano eleitoral corresponde a 2002 ou 2006 não extraímos os arquivos do formato zip
+  if(i=="2002" | i=="2006"){
+    download.file(url, file.path(getwd(), i, paste0("prestacao_contas_", i, ".zip")))
+  }
+  if(i=="2002" | i=="2006"){next}
+  
+  download.file(url, banco) #Baixa o arquivo na pasta temporária:
+  unzip(banco, exdir = file.path(getwd(), i)) #Baixa o arquivo no diretório:
+  unlink(banco)
+}
+```
+**Obs:** Não foi possível extrair os arquivos de 2002 e 2006 automatizamente pelo R, dado que o TSE disponibilizar arquivos no formado `.rar` para estes anos. Portanto, o looping anterior apenas baixou os zarquivos zipados para que, posteriormente, pudessemos extrair os arquivos manualmente.
