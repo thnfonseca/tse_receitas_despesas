@@ -1,0 +1,235 @@
+## Inconsistências
+
+### Eleições de 2016
+
+Nesta seção diminuiremos as inconsistências do baco de receitas das eleições municipais de 2016. Para replicar os bancos basta seguir os códigos adiante após executar os screapts [`download_tse.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/download.tse), [`leitura_pareamento.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados), [`municipios_ibge.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) e [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
+
+Carregamos o pacote `dplyr`:
+```{r eval=F}
+library(dplyr)
+```
+
+Chamamos de "pasta" o diretório do projeto:
+```{r eval=FALSE}
+setwd("C:~/tse_receitas_despesas")
+```
+```{r results=FALSE, echo=FALSE}
+setwd("C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas")
+```
+
+Carregamos o banco:
+```{r eval=F}
+load(file.path(getwd(), "bancos.tratados", "rec.16.RData"))
+```
+
+Padronizamos informações inexistentes, preenchendo células vazias com `NA`:
+```{r eval=F}
+for(i in 1:ncol(rec.16)){
+  rec.16[[i]]<-gsub("^#NULO#$",NA,as.character(rec.16[[i]]))
+  rec.16[[i]]<-gsub("^#NULO$",NA,as.character(rec.16[[i]]))
+  rec.16[[i]]<-gsub("^<NA>$",NA,as.character(rec.16[[i]]))
+  rec.16[[i]]<-gsub("^$",NA,as.character(rec.16[[i]]))
+  rec.16[[i]]<-gsub("--$",NA,as.character(rec.16[[i]]))
+}
+```
+
+Padronizamos algumas variáveis:
+```{r eval=F}
+# Preenchemos o ano da eleição:
+rec.16$ano<-"2016"
+
+# Padronizamos data e hora em que o TSE gerou o documento:
+rec.16$data.e.hora<-ifelse(nchar(rec.16$data.e.hora)==18,
+                           paste0(substr(rec.16$data.e.hora,1,10),"-",substr(rec.16$data.e.hora,11,18)),
+                           rec.16$data.e.hora)
+rec.16$data.e.hora<-gsub(" ","-",rec.16$data.e.hora)
+
+# Padronizamos o tipo de receita
+rec.16<- rec.16 %>% mutate(tipo.receita=toupper(tipo.receita))
+
+# Padronizamos o valor da receita
+rec.16<- rec.16 %>% mutate(valor.receita=as.numeric(gsub(",",".",valor.receita)))
+
+#Padronizamos a data da doação:
+rec.16<-rec.16 %>% 
+  mutate(data.receita=gsub("-JAN","/01",data.receita),
+         data.receita=gsub("-FEB","/01",data.receita),
+         data.receita=gsub("-MAR","/02",data.receita),
+         data.receita=gsub("-APR","/04",data.receita),
+         data.receita=gsub("-MAY","/05",data.receita),
+         data.receita=gsub("-JUN","/06",data.receita),
+         data.receita=gsub("-JUL","/07",data.receita),
+         data.receita=gsub("-AUG","/08",data.receita),
+         data.receita=gsub("-SEP","/09",data.receita),
+         data.receita=gsub("-OCT","/10",data.receita),
+         data.receita=gsub("-NOV","/11",data.receita),
+         data.receita=gsub("-DEC","/12",data.receita),
+         data.receita=gsub("-13","/2013",data.receita),
+         data.receita=gsub("-01","/2017",data.receita),
+         data.receita=gsub("-06","/2006",data.receita),
+         data.receita=gsub("-10","/2010",data.receita),
+         data.receita=gsub("-14","/2014",data.receita),
+         data.receita=gsub("-15","/2015",data.receita),
+         data.receita=gsub("-16","/2016",data.receita),
+         data.receita=gsub("-17","/2017",data.receita)) %>%
+  mutate(data.receita=substr(data.receita,1,10))
+```
+
+
+### Tipo de receita
+
+Assim como nos demais bancos de receita, o tipo de receita é a variável que apresenta maior número de inconsistências. Criamos a variável alternativa 'tipo.receita2', para preservar os valores da variável original (tipo.receita). As inconsistências foram verificadas manualmente por buscas e seleção de amostras. Ao verificar padrões, pudemos distinguir a categoria correta dos doadores. A ordem das alterações a seguir deve ser mantida. A classificação é semelhante aos demais bancos.
+
+```{r eval=F}
+# Criamos a variável:
+rec.16$tipo.receita2<-NA
+```
+
+
+Para saber se o doador corresponde a candidatos, cruzamos os dados com o banco de CNPJs dos candidatos individuais, gerado a partir do screapt [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
+```{r eval=F}
+# Para carregar o banco:
+load(file.path(getwd(), "informacoes.candidatos", "cnpjs.cand.16.RData"))
+# Fazemos adaptações para o cruzamento:
+cnpjs.cand.16 <- cnpjs.cand.16 %>% rename(x=nome.candidato, cpf.cnpj.doador=cnpj)
+#Cruzamos os dados:
+rec.16 <- rec.16 %>% mutate(cpf.cnpj.doador=ifelse(nchar(cpf.cnpj.doador)==13,
+                                                   paste0("0",cpf.cnpj.doador),cpf.cnpj.doador)) %>% 
+  left_join(cnpjs.cand.16, by="cpf.cnpj.doador") %>%
+  mutate(tipo.receita2=ifelse(!is.na(x), "RECURSOS DE OUTROS CANDIDATOS", tipo.receita2)) %>%
+  mutate(x=NULL)
+```
+
+Para saber se o doador corresponde a partidos, cruzamos os dados com o banco de CNPJs dos comitês e diretórios partidários, gerado a partir do screapt [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos):
+```{r eval=F}
+# Carregamos o banco:
+load(file.path(getwd(), "informacoes.candidatos", "cnpjs.part.16.RData"))
+cnpjs.part.16 <- cnpjs.part.16 %>% rename(x=nome.candidato, cpf.cnpj.doador=cnpj)
+# Cruzamos:
+rec.16 <- rec.16 %>% left_join(cnpjs.part.16, by="cpf.cnpj.doador") %>%
+  mutate(tipo.receita2=ifelse(!is.na(x), "RECURSOS DE PARTIDO POLÍTICO", tipo.receita2)) %>%
+  mutate(x=NULL)
+```
+
+Para saber se o doador corresponde a candidatos, também cruzamos os dados com o banco de CNPJs dos candidatos individuais, gerado a partir do screapt [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos):
+```{r eval=F}
+# Carregamos o banco:
+load(file.path(getwd(), "informacoes.candidatos", "cpfs.cand.16.RData"))
+cpfs.cand.16 <- cpfs.cand.16 %>% rename(x=NOME_CANDIDATO, cpf.cnpj.doador=CPF_CANDIDATO)
+# Cruzamos o banco:
+rec.16 <- rec.16 %>% left_join(cpfs.cand.16, by="cpf.cnpj.doador") %>%
+  mutate(tipo.receita2=ifelse(!is.na(x) & is.na(tipo.receita2),
+                              "RECURSOS DE OUTROS CANDIDATOS", tipo.receita2)) %>%
+  mutate(x=NULL)
+```
+
+Verificamos que doações previamente classificadas como "RECURSOS DE PESSOAS FÍSICAS", "DOAÇÕES PELA INTERNET" e "COMERCIALIZAÇÃO DE BENS OU REALIZAÇÃO DE EVENTOS", envolvem apenas pessoas físicas:
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(is.na(tipo.receita2) &
+                                                 (tipo.receita=="RECURSOS DE PESSOAS FÍSICAS"|
+                                                    tipo.receita=="DOAÇÕES PELA INTERNET"|
+                                                    tipo.receita=="COMERCIALIZAÇÃO DE BENS OU REALIZAÇÃO DE EVENTOS"),
+                                               "RECURSOS DE PESSOAS FÍSICAS",tipo.receita2))
+```
+
+Doações previamente classificadas como "RECURSOS DE ORIGENS NÃO IDENTIFICADAS"  e "RENDIMENTOS DE APLICAÇÕES FINANCEIRAS" não têm nome ou CPF/CNPJ do doador. Portanto, mantivemos a mesma classificação:
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(is.na(tipo.receita2) &
+                                                 tipo.receita=="RECURSOS DE ORIGENS NÃO IDENTIFICADAS",
+                                               "RECURSOS DE ORIGENS NÃO IDENTIFICADAS",tipo.receita2),
+                          tipo.receita2=ifelse(is.na(tipo.receita2) &
+                                                 tipo.receita=="RENDIMENTOS DE APLICAÇÕES FINANCEIRAS",
+                                               "RENDIMENTOS DE APLICAÇÕES FINANCEIRAS",tipo.receita2))
+```
+
+Doações previamente classificadas como "RECURSOS PRÓPRIOS" pertencem realmente ao próprio candidato quando os CPFs são iguais. Caso contrário, as doações partiram de pessoas físicas.
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(is.na(tipo.receita2) & tipo.receita=="RECURSOS PRÓPRIOS" &
+                                                 cpf.candidato==cpf.cnpj.doador,
+                                               "RECURSOS PRÓPRIOS",tipo.receita2))
+```
+
+Recursos previamente classificados como "RECURSOS DE OUTROS CANDIDATOS" foram alterados para "RECURSOS PRÓPRIOS" quando o nome do candidato corresponde ao nome do doador:
+```{r eval=F}
+rec.16<-rec.16 %>% 
+  rowwise() %>%
+  mutate(tipo.receita2=ifelse(tipo.receita2=="RECURSOS DE OUTROS CANDIDATOS" &
+                                agrepl(nome.candidato, nome.doador.rec.fed, max=5)==T,
+                              "RECURSOS PRÓPRIOS",tipo.receita2))
+```
+
+Independentemente das classificações anteriores, se os CPFs do candidato e do doador forem semelhantes, classificamos as doações como recursos próprios:
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(cpf.candidato==cpf.cnpj.doador,
+                                               "RECURSOS PRÓPRIOS",tipo.receita2))
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(tipo.receita2=="RECURSOS DE OUTROS CANDIDATOS" &
+                                                 agrepl(nome.candidato, nome.doador.rec.fed),
+                                               "RECURSOS PRÓPRIOS",tipo.receita2))
+```
+
+As demais doações previamente classificadas como "RECURSOS DE OUTROS CANDIDATOS" foram alterados para partiram de pessoas jurídicas quando o nome do doador seguno a Receita Federal apresenta os termos a seguir:
+```{r eval=F}
+rec.16<-rec.16 %>%
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T & tipo.receita=="RECURSOS DE OUTROS CANDIDATOS" &
+                                (grepl("LTDA",toupper(iconv(nome.doador.rec.fed, to="ASCII//TRANSLIT")))==T |
+                                 grepl("EPP", substr(nome.doador.rec.fed,nchar(nome.doador.rec.fed)-2,nchar(nome.doador.rec.fed)))==T |
+                                 grepl(" ME", substr(nome.doador.rec.fed,nchar(nome.doador.rec.fed)-2,nchar(nome.doador.rec.fed)))==T),
+                            "RECURSOS DE PESSOAS JURÍDICAS",tipo.receita2))
+```
+
+As demais doações previamente classificadas como "RECURSOS DE OUTROS CANDIDATOS" realmente pertencempartiram de outros candidatos:
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(is.na(tipo.receita2) & 
+                                                 tipo.receita=="RECURSOS DE OUTROS CANDIDATOS",
+                                               "RECURSOS DE OUTROS CANDIDATOS",tipo.receita2))
+```
+
+
+As demais doações previamente classificadas como "RECURSOS DE PARTIDO POLÍTICO" foram alteradas para pessoas jurídicas quando o nome do doador segundo a Receita Federal apresenta os termos a seguir. Caso contrário, verificamos que permanecem com a mesma classificação. 
+```{r eval=F}
+rec.16<-rec.16 %>%
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T & tipo.receita=="RECURSOS DE PARTIDO POLÍTICO" &
+                                (grepl("LTDA",toupper(iconv(nome.doador.rec.fed, to="ASCII//TRANSLIT")))==T |
+                                   grepl("EPP", substr(nome.doador.rec.fed,nchar(nome.doador.rec.fed)-2,nchar(nome.doador.rec.fed)))==T |
+                                   grepl("S/A", substr(nome.doador.rec.fed,nchar(nome.doador.rec.fed)-2,nchar(nome.doador.rec.fed)))==T |
+                                   grepl(" ME", substr(nome.doador.rec.fed,nchar(nome.doador.rec.fed)-2,nchar(nome.doador.rec.fed)))==T),
+                              "RECURSOS DE PESSOAS JURÍDICAS",tipo.receita2))
+
+
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(is.na(tipo.receita2) & 
+                                                 tipo.receita=="RECURSOS DE PARTIDO POLÍTICO",
+                                               "RECURSOS DE PARTIDO POLÍTICO",tipo.receita2))
+```
+
+
+As demais doações não foram identificadas:
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(tipo.receita2=ifelse(is.na(tipo.receita2),
+                                               "RECURSOS DE ORIGENS NÃO IDENTIFICADAS",tipo.receita2))
+```
+
+
+#### Alterações a partir da nova classificação do tipo de receita
+
+Se as doações partiram de pessoas físicas ou não foram identificadas, são inexistentes os valores do número do partido e de candidato doador, bem como o setor econômico:
+```{r eval=F}
+rec.16<-rec.16 %>% mutate(numero.partido.doador=ifelse(tipo.receita2=="RECURSOS DE ORIGENS NÃO IDENTIFICADAS"|
+                                                         tipo.receita2=="RECURSOS DE PESSOAS FÍSICAS",
+                                                       NA,numero.partido.doador),
+                          numero.candidato.doador=ifelse(tipo.receita2=="RECURSOS DE ORIGENS NÃO IDENTIFICADAS"|
+                                                           tipo.receita2=="RECURSOS DE PESSOAS FÍSICAS",
+                                                         NA,numero.candidato.doador),
+                          cod.setor.econ.doador=ifelse(tipo.receita2=="RECURSOS DE ORIGENS NÃO IDENTIFICADAS"|
+                                                         tipo.receita2=="RECURSOS DE PESSOAS FÍSICAS",
+                                                       NA,cod.setor.econ.doador),
+                          setor.econ.doador=ifelse(tipo.receita2=="RECURSOS DE ORIGENS NÃO IDENTIFICADAS"|
+                                                     tipo.receita2=="RECURSOS DE PESSOAS FÍSICAS",
+                                                   NA,setor.econ.doador))
+```
+
+Salvamos o banco:
+```{r eval=F}
+save(rec.16, file = file.path(getwd(), "inconsistencias", "rec.16.RData"))
+```
+
+FIM.

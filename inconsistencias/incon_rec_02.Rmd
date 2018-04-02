@@ -1,0 +1,173 @@
+## Inconsistências
+
+### Eleições de 2002
+
+Nesta seção diminuiremos as inconsistências do banco de receitas das eleições gerais de 2002. Para replicar o banco basta seguir os códigos adiante após executar os screapts [`download_tse.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/download.tse), [`leitura_pareamento.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados), [`municipios_ibge.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) e [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
+
+Carregamos o pacote `dplyr`:
+```{r }
+library(dplyr)
+```
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(), "bancos.tratados", "rec.02.RData"))
+```
+
+Definimos o diretório do projeto:
+```{r eval=FALSE}
+setwd("C:~/tse_receitas_despesas")
+```
+```{r results=FALSE, echo=FALSE}
+setwd("C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas")
+```
+
+Padronizamos informações inexistentes, preenchendo células vazias com NA:
+```{r }
+for(i in 1:ncol(rec.02)){
+  rec.02[[i]]<-gsub("^#NULO#$",NA,as.character(rec.02[[i]]))
+  rec.02[[i]]<-gsub("^#NULO$",NA,as.character(rec.02[[i]]))
+  rec.02[[i]]<-gsub("^<NA>$",NA,as.character(rec.02[[i]]))
+  rec.02[[i]]<-gsub("^$",NA,as.character(rec.02[[i]]))
+  rec.02[[i]]<-gsub("^00000000000000$",NA,as.character(rec.02[[i]]))
+  rec.02[[i]]<-gsub("^00000000000$",NA,as.character(rec.02[[i]]))
+}
+```
+
+
+Padronizamos algumas variáveis:
+```{r }
+# Descrição da eleição.
+rec.02$desc.eleicao<-"Eleições Gerais 2002"
+# Tipo de receita
+rec.02<- rec.02 %>% mutate(tipo.receita=toupper(tipo.receita))
+#Valor da receita
+rec.02<- rec.02 %>% mutate(valor.receita=as.numeric(gsub(",",".",valor.receita)))
+#Data das doações
+rec.02<-rec.02%>%
+  mutate(data.receita=ifelse(nchar(data.receita)==9, paste0("0",data.receita), data.receita))
+# Excluímos uma variável repetida
+rec.02<-rec.02 %>% mutate(tipo.documento.1=NULL)
+```
+
+
+Elaboramos a variável tipo.receita2 para manter os vaores originais da variável "tipo.receita".
+```{r }
+rec.02$tipo.receita2<-NA
+```
+
+Para identificar quais doações partiram de candidatos ou se os recursos pertenciam aos próprios candidatos, cruzamos o banco de receitas com informações sobre os candidatos individuais extraÍdas de outra base de dados do TSE. O banco de informações sobre os candidatos foi gerado pelo screapt [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
+```{r }
+# Carregamos o banco de candidatos:
+load(file.path(getwd(), "informacoes.candidatos", "cpfs.cand.02.RData"))
+# selecionamos algumas variáveis:
+cpfs.cand.02<-cpfs.cand.02 %>% 
+  select(NOME_CANDIDATO, NUMERO_CANDIDATO, NUMERO_PARTIDO, CPF_CANDIDATO) %>%
+  rename(x=CPF_CANDIDATO)
+
+#Cruzamos as informações para verificar se quais doações são provenientes de candidatos individuais.
+# em caso positivo, preenchemos algumas variáveis em caso de missing values.
+rec.02<- rec.02 %>% mutate(x=as.character(as.numeric(cpf.cnpj.doador))) %>%
+  left_join(cpfs.cand.02, by="x") %>%
+  mutate(tipo.receita2=ifelse(!is.na(NOME_CANDIDATO),
+                              "RECURSOS DE OUTROS CANDIDATOS",NA),
+         numero.partido.doador=ifelse(!is.na(NUMERO_PARTIDO) & is.na(numero.partido.doador),
+                                      NUMERO_PARTIDO,numero.partido.doador),
+         numero.candidato.doador=ifelse(!is.na(NUMERO_CANDIDATO) & is.na(numero.candidato.doador),
+                                        NUMERO_CANDIDATO,numero.candidato.doador),
+         nome.doador=ifelse(!is.na(NOME_CANDIDATO) & is.na(nome.doador),
+                                        NOME_CANDIDATO,nome.doador)) %>%
+  mutate(x=NULL, NOME_CANDIDATO=NULL, NUMERO_CANDIDATO=NULL, 
+         NUMERO_PARTIDO=NULL, CPF_CANDIDATO=NULL) %>% data.frame()
+```
+
+Verificamos se as doações pertencem aos próprios candidatos.
+```{r }
+rec.02<- rec.02 %>% 
+  mutate(tipo.receita2=ifelse(as.character(as.numeric(cpf.cnpj.doador))==as.character(as.numeric(cpf.candidato)) |
+                                nome.doador==nome.candidato,
+                              "RECURSOS PRÓPRIOS",tipo.receita2))
+```
+
+Por meio de palavras-chaves, identificamos o tipo de receita. A ordem das alterações deve ser mantida. Os termos foram elaborados a partir da identificação de padrões nos nomes dos doadores.
+```{r }
+# Os termoS "COMITE" e "COMISSAO" definem a existência de comitês:
+rec.02<-rec.02%>% 
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T &
+                                (grepl("COMITE",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl("COMISSAO",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T),
+                              "RECURSOS DE COMITÊS",tipo.receita2))
+# O termo "PARTIDO" define a existência de recursos direcionados a partidos:
+rec.02<-rec.02%>% 
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T &
+                                grepl("PARTIDO",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T,
+                              "RECURSOS DE PARTIDO POLÍTICO",tipo.receita2))
+# OS termoS "ELEICOES", "ELEICAO" e "CANDIDATO" definem recursos de candidatos individuais:
+rec.02<-rec.02%>% 
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T &
+                                (grepl("ELEICOES",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl("ELEICAO",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl("CANDIDATO",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T),
+                              "RECURSOS DE OUTROS CANDIDATOS",tipo.receita2))
+#4. OS termoS a seguir definem a existência de recursos direcionados a empresas:
+rec.02<-rec.02%>% 
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T &
+                                (grepl(" S/A",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl("LTDA",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl(" S.A ",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl(" S.A. ",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl(" EPP ",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl("S/A.",toupper(iconv(nome.doador, to="ASCII//TRANSLIT")))==T |
+                                   grepl("EPP", substr(nome.doador,nchar(nome.doador)-2,nchar(nome.doador)))==T |
+                                   grepl(" ME", substr(nome.doador,nchar(nome.doador)-2,nchar(nome.doador)))==T |
+                                   grepl("S.A", substr(nome.doador,nchar(nome.doador)-2,nchar(nome.doador)))==T |
+                                   grepl(" SA", substr(nome.doador,nchar(nome.doador)-2,nchar(nome.doador)))==T |
+                                   grepl("S.A.", substr(nome.doador,nchar(nome.doador)-3,nchar(nome.doador)))==T),
+                              "RECURSOS DE PESSOAS JURÍDICAS",tipo.receita2))
+```
+
+Corrigimos erro de digitação:
+```{r }
+rec.02<-rec.02%>%mutate(cpf.cnpj.doador=gsub("^0$",NA,cpf.cnpj.doador))
+```
+
+As demais doações provenientes de pessoas jurídicas foram encontradas a partir do "mil invertido" do final do CNPJ:
+```{r }
+rec.02<-rec.02%>%
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T & (nchar(cpf.cnpj.doador)==14|
+                                                           nchar(cpf.cnpj.doador)==13),
+                              "RECURSOS DE PESSOAS JURÍDICAS",tipo.receita2))
+rec.02<-rec.02%>%
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T &
+                                (grepl("0001", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0002", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0003", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0004", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0005", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0006", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0007", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0008", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T |
+                                   grepl("0009", substr(cpf.cnpj.doador,nchar(cpf.cnpj.doador)-5,nchar(cpf.cnpj.doador)-2))==T),
+                              "RECURSOS DE PESSOAS JURÍDICAS",tipo.receita2))
+```
+
+Os demais CPFs com número de dígidos menor ou igual a 6 correspondem a pessoas físicas:
+```{r }
+rec.02<-rec.02%>%
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T & nchar(cpf.cnpj.doador)>=6,
+                              "RECURSOS DE PESSOAS FÍSICAS",tipo.receita2))
+```
+
+Os demais tipos de receita não foram identificados:
+```{r }
+rec.02<-rec.02%>%
+  mutate(tipo.receita2=ifelse(is.na(tipo.receita2)==T,
+                              "RECURSOS DE ORIGENS NÃO IDENTIFICADAS",tipo.receita2))
+```
+
+Salvamos o banco:
+```{r }
+save(rec.02, file = file.path(getwd(), "inconsistencias", "rec.02.RData"))
+```
+
+FIM.
