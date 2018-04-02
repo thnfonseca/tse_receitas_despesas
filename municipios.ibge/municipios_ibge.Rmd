@@ -1,0 +1,301 @@
+
+## Municípios segundo IBGE
+
+Neste screapt, padronizaremos o nome dos municípios segundo a nomenclatura do IBGE. Mais especificamente, verificaremos quais municípios não correspondem à nomenclatura do IBGE, para que, posteriormente, possamos substituí-los. Após verificar quais municípios não apresentam correspondência com a nomenclatura do IBGE, salvamos arquivos em `.csv` referentes aos nomes que devem ser substituídos e aos municípios que podem ser potenciais substitutos - estes nomeados com o sufixo `.sub`. Em seguida, verificamos manualmente a correspondência entre os municípios substituíveis e substitutos, salvando novo arquivo em `.csv` nomeado com o sufixo `.alt`, disponível na pasta [`municipios.ibge`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) no GitHub. Os arquivos `.alt` serão utilizados nos screapts responsáveis por diminuir inconsistências dos bancos de despesa e receita. Não houve substituições nos bancos que já seguiam a nomenclatura do IBGE.
+
+O `dplyr` será o único pacote utilizado para a tarefa.
+```{r }
+library(dplyr)
+```
+
+### I. Obtenção dos municípios segundo a nomenclatura do IBGE.
+
+Carregamos o banco de municípios segundo a nomenclatura do IBGE.
+```{r eval=FALSE}
+setwd("~/tse_receitas_despesas")
+```
+```{r results=FALSE, echo=FALSE}
+setwd("C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas")
+```
+
+```{r eval=FALSE}
+# Antes, quardamos o diretório do projeto...
+dir.proj<-"~/tse_receitas_despesas"
+#... e o diretório do banco de municípios do IBGE:
+diretorio<-"~/tse_receitas_despesas/municipios.ibge"
+```
+```{r results=FALSE, echo=FALSE}
+# Antes, quardamos o diretório do projeto...
+dir.proj<-"C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas"
+#... e o diretório do banco de municípios do IBGE:
+diretorio<-"C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas/municipios.ibge"
+```
+```{r }
+# Lemos o banco:
+municipios<-data.table::fread(file.path(diretorio, 'municipios.ibge.txt'), 
+                              sep = ";", header = T, encoding = "UTF-8")
+```
+
+Classificamos todas as variáveis como vetor textual:
+```{r }
+for(i in 1:ncol(municipios)){ municipios[[i]]<-as.character(municipios[[i]]) }
+```
+
+Substituímos os nomes dos estados por siglas:
+```{r }
+# Agrupamos o banco "municipios" por estado:
+estados <- municipios %>% select(uf_sigla, uf_des) %>% group_by(uf_sigla, uf_des) %>%
+  summarise(total=n()) %>% data.frame()
+# Substituímos os estados por suas siglas.
+estados$uf<-c('RO','AC','AM','RR','PA','AP','TO','MA','PI','CE','RN','PB','PE','AL',
+              'SE','BA','MG','ES','RJ','SP','PR','SC','RS','MS','MT','GO','DF')
+# Selecionamos apenas parte do banco:
+estados<-estados %>% select(uf_sigla, uf_des, uf)
+```
+
+Selecionamos apenas o nome dos municípios e as siglas dos estados, para servir de base às substituições adiante.
+```{r }
+municipios <- municipios %>% left_join(estados, by=c('uf_sigla', 'uf_des')) %>%
+  mutate(x=1, municipio=toupper(mun_des) ) %>% 
+  select(municipio, uf, x)
+```
+
+Salvamos o banco em csv. Esse procedimento não é necessário, mas é útil para consulta se necessário.
+```{r }
+write.csv2(municipios, file.path(diretorio,"municipios.ibge.csv"))
+```
+
+
+### II. Cruzamento dos dados
+
+Em primeiro lugar, cruzaremos os dados com os bancos de receita já pareados pelo primeiro screapt do presente projeto - [download_leitura.Rmd](https://github.com/thnfonseca/tse_receitas_despesas/blob/master/download_leitura.Rmd). Em segundo, utlizaremos os bancos de despesa \([download_leitura.Rmd](https://github.com/thnfonseca/tse_receitas_despesas/blob/master/download_leitura.Rmd)\). Os bancos de despesa e de receita que seguiram a nomenclatura do IBGE não foram considerados, visto que nestes anos eleitorais não há necessidade de alterar o nome dos municípios.
+
+### 1. Receitas de 2012
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj, "rec.12.RData"))
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamento:
+muni.12<-rec.12 %>%
+  anti_join(municipios, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio)
+muni.12 <- muni.12[!duplicated(muni.12),]
+# Salvamos em csv:
+write.csv2(muni.12,file.path(diretorio,"muni.12.csv"))
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+# Cruzamento:
+muni.12.sub<-municipios %>%
+  anti_join(rec.12, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio)
+muni.12.sub <- muni.12.sub[!duplicated(muni.12.sub),]
+# Salvamos em csv:
+write.csv2(muni.12.sub, file.path(diretorio,"muni.12.sub.csv"))
+```
+
+Utilizamos os dois bancos gerados para verificar manualmente quais nomes serão os substitutos e os substituídos
+O novo banco (muni.12.alt) será utilizado no screapt para tratar os dados de receita de 2012
+
+### 1. Receitas de 2008
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj, "bancos.tratados", "rec.08.RData"))
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamento:
+muni.08<-rec.08 %>%
+  anti_join(municipios, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio) %>% data.frame()
+muni.08 <- muni.08[!duplicated(muni.08),]
+# Salvamos em csv:
+write.csv2(muni.08, file.path(diretorio,"muni.08.csv"))
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+# Cruzamento:
+muni.08.sub<-municipios %>%
+  anti_join(rec.08, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio) %>% data.frame()
+muni.08.sub <- muni.08.sub[!duplicated(muni.08.sub),]
+# Salvamos em csv:
+write.csv2(muni.08.sub, file.path(diretorio, "muni.08.sub.csv"))
+```
+
+### 3. Despesas de 2016
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj, "bancos.tratados", "desp.16.RData")
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamento:
+muni.desp.16 <- desp.16 %>% rename(municipio=nome.municipio) %>%
+  anti_join(municipios, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio) %>% data.frame()
+muni.desp.16 <- muni.desp.16[!duplicated(muni.desp.16),]
+# Salvamos em csv:
+write.csv2(muni.desp.16, file.path(getwd(), "municipios.ibge", "muni.desp.16.csv"))
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+# Cruzamento:
+muni.desp.16.sub <- municipios %>% rename(nome.municipio=municipio) %>%
+  anti_join(desp.16, by=c('nome.municipio', 'uf')) %>%
+  select(nome.municipio, uf) %>% arrange(uf, nome.municipio) %>% data.frame()
+muni.desp.16.sub <- muni.desp.16.sub[!duplicated(muni.desp.16.sub),]
+# Salvamos em csv:
+write.csv2(muni.desp.16.sub, file.path(getwd(), "municipios.ibge", "muni.desp.16.sub.csv"))
+rm(list = ls())
+```
+
+### 4. Despesas de 2012
+
+Carregamos os bancos.
+```{r }
+municipios <- read.csv2(file.path(dir.proj, "municipios.ibge", "municipios.ibge.csv"),
+                        header = T)
+load(file.path(dir.proj, "bancos.tratados", "desp.12.RData"))
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamento:
+muni.desp.12 <- desp.12 %>% rename(municipio=nome.municipio) %>%
+  anti_join(municipios, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio) %>% data.frame()
+muni.desp.12 <- muni.desp.12[!duplicated(muni.desp.12),]
+# Salvamos em csv:
+write.csv2(muni.desp.12, file.path(diretorio, "muni.desp.12.csv"))
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+# Cruzamento:
+muni.desp.12.sub <- municipios %>% rename(nome.municipio=municipio) %>%
+  anti_join(desp.12, by=c('nome.municipio', 'uf')) %>%
+  select(nome.municipio, uf) %>% arrange(uf, nome.municipio) %>% data.frame()
+muni.desp.12.sub <- muni.desp.12.sub[!duplicated(muni.desp.12.sub),]
+# Salvamos em csv:
+write.csv2(muni.desp.12.sub, file.path(diretorio, "muni.desp.12.sub.csv"))
+rm(list = ls())
+```
+
+
+### 5. Despesas de 2008
+
+Carregamos os bancos.
+```{r }
+# Banco de municípios do IBGE
+municipios <- read.csv2(file.path(diretorio, "municipios.ibge.csv"),
+                        header = T)
+# Banco de despesas
+load(file.path(dir.proj, "bancos.tratados", "desp.08.RData"))
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamento:
+muni.desp.08 <- desp.08 %>% rename(municipio=nome.municipio) %>%
+  anti_join(municipios, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio) %>% data.frame()
+muni.desp.08 <- muni.desp.08[!duplicated(muni.desp.08),]
+# Salvamos em csv:
+write.csv2(muni.desp.08, file.path(diretorio, "muni.desp.08.csv"))
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+# Cruzamento:
+muni.desp.08.sub <- municipios %>% rename(nome.municipio=municipio) %>%
+  anti_join(desp.08, by=c('nome.municipio', 'uf')) %>%
+  select(nome.municipio, uf) %>% arrange(uf, nome.municipio) %>% data.frame()
+muni.desp.08.sub <- muni.desp.08.sub[!duplicated(muni.desp.08.sub),]
+# Salvamos em csv:
+write.csv2(muni.desp.08.sub, file.path(diretorio, "muni.desp.08.sub.csv"))
+rm(list = ls())
+```
+
+
+
+### 6. Despesas de 2006
+
+Carregamos os bancos.
+```{r }
+# Banco de municípios do IBGE
+municipios <- read.csv2(file.path(diretorio, "municipios.ibge.csv"), header = T)
+# Banco de despesas
+load(file.path(dir.proj, "bancos.tratados",  "desp.06.RData")
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamento:
+muni.desp.06 <- desp.06 %>% 
+  rename(municipio=municipio.fornecedor) %>%
+  anti_join(municipios, by=c('municipio')) %>%
+  select(municipio, uf) %>% arrange(municipio, uf) %>% data.frame()
+muni.desp.06 <- muni.desp.06[!duplicated(muni.desp.06),]
+# Salvamos em csv:
+write.csv2(muni.desp.06, "C:/Users/Thiago/Dropbox/Doutorado/Disciplinas/Doações_Saúde/inconsistências/muni.desp.06.csv")
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+# Cruzamento:
+muni.desp.06.sub <- municipios %>% rename(municipio.fornecedor=municipio) %>%
+  anti_join(desp.06, by=c('municipio.fornecedor')) %>%
+  select(municipio.fornecedor, uf) %>% arrange(municipio.fornecedor, uf) %>% data.frame()
+muni.desp.06.sub <- muni.desp.06.sub[!duplicated(muni.desp.06.sub),]
+# Salvamos em csv:
+write.csv2(muni.desp.06.sub, file.path(diretorio, "muni.desp.06.sub.csv")
+rm(list = ls())
+```
+
+
+### 7. Despesas de 2004
+
+Carregamos os bancos.
+```{r }
+# Banco de municípios do IBGE
+municipios <- read.csv2(file.path(diretorio, "municipios.ibge.csv"), header = T)
+# Banco de despesas
+load(file.path(dir.proj, "bancos.tratados", "desp.04.RData")
+```
+
+Cruzamos os bancos para obter os municípios que não correspondem à nomenclatura do IBGE e salvamos em csv. Estes nomes deverão ser substituídos.
+```{r }
+# Cruzamos
+municipios$municipio <- iconv(municipios$municipio, to="ASCII//TRANSLIT")
+muni.desp.04 <- desp.04 %>% rename(municipio=nome.municipio) %>%
+  anti_join(municipios, by=c('municipio', 'uf')) %>%
+  select(municipio, uf) %>% arrange(uf, municipio) %>% data.frame()
+muni.desp.04 <- muni.desp.04[!duplicated(muni.desp.04),]
+# Salvamos
+write.csv2(muni.desp.04, file.path(diretorio, "muni.desp.04.csv")
+```
+
+Cruzamos os bancos para obter os nomes dos municípios do IBGE que não foram incluídos no banco de receitas. Estes nomes serão os substitutos.
+```{r }
+#Cruzamento:
+muni.desp.04.sub <- municipios %>% rename(nome.municipio=municipio) %>%
+  anti_join(desp.04, by=c('nome.municipio', 'uf')) %>%
+  select(nome.municipio, uf) %>% arrange(uf, nome.municipio) %>% data.frame()
+muni.desp.04.sub <- muni.desp.04.sub[!duplicated(muni.desp.04.sub),]
+# Salvamos:
+write.csv2(muni.desp.04.sub, file.path(diretorio, "muni.desp.04.sub.csv"))
+```
+
+FIM.
