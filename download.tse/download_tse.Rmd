@@ -9,7 +9,8 @@ output: html_document
 
 Neste screapt, vamos baixar os bancos de dados fornecidos pelo TSE sobre receita e despesa de candidatos e partidos. Os bancos envolvem eleições gerais (federais e estaduais) e municipais desde 2002. O TSE não dispõe de dados de receita e despesa anteriores a 2002.
 
-Antes de baixar os dados, selecionamos o diretório em que os bancos serão baixados. No caso, baixaremos na pasta do nosso projeto, `tse_receitas_despesas`. Dentro desta pasta, os bancos serão divididos em outras pastas que correspondem ao ano eleitoral da despesa e da receita.
+Antes de baixar os dados, selecionamos o diretório em que os bancos serão baixados. No caso, baixaremos na pasta do nosso projeto, [`tse_receitas_despesas`](https://github.com/thnfonseca/tse_receitas_despesas). Dentro desta pasta, os bancos serão divididos em outras pastas que correspondem ao ano eleitoral da despesa e da receita. O conteúdo dos bancos não estão disponíveis no GitHub, porque os arquivos superam o espaço disponível. No entanto, para replicar o trabalho basta definir um diretório no seu computador.
+
 ```{r eval=FALSE}
 dir.proj <- "C:~/tse_receitas_despesas"
 ```
