@@ -1,0 +1,2012 @@
+---
+title: "leitura_pareamento"
+author: "FONSECA, T. N."
+date: "29 de março de 2018"
+output: html_document
+---
+
+# Download e leitura dos bancos de receita e despesa do TSE
+
+Neste screapt, vamos ler e parear os bancos de dados de receita e despesa provenientes do TSE, a fim de viabilizar a utilização conjunta dos dados em todos os anos eleitorais. O procedimento será empregado em eleição por eleição, devido às especificidades de cada ano eleitoral.
+
+
+Carregamos o pacote `dplyr` para ler os arquivos e definimos o diretório do projeto. Também é necessário ter o pacote `data.table` instalado.
+```{r }
+library(dplyr)
+```
+
+
+Definimos o diretório para ler e salvar os dados.
+```{r eval=F}
+dir.proj <- "C:~/tse_receitas_despesas"
+```
+```{r results=FALSE, echo=FALSE}
+dir.proj <- "C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas"
+```
+
+# I. Nível federal e estadual
+
+### 1. 2014
+
+### 1.1. Leitura dos bancos de receitas
+
+Verificamos os arquivos que devem ser lidos, separando-os por receitas de partidos, comitês e diretórios partidários.
+```{r }
+pasta<-file.path(dir.proj,"2014") #Informamos a pasta
+desp<-list.files(pasta)[grep("receita",list.files(pasta))] # Identificamos todos os arquivos
+part<-desp[grep("partido",desp)] # Arquivos referentes a partidos
+com<-desp[grep("comite",desp)] # Arquivos referentes a comitês
+cand<-desp[grep("candidato",desp)] # Arquivos referentes a candidatos
+```
+
+Os loopings a seguir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas.
+```{r }
+for(j in part){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j)) %>% data.frame()
+  if(length(grep("_sup.txt",j))>0){
+    x[,setdiff(names(rec.part),names(x))]<-NA
+    rec.part[,setdiff(names(x),names(rec.part))]<-NA
+    x<-x[,names(rec.part)]
+  }
+  if(j==part[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rm(x)
+}
+rec.part<-rec.part[!duplicated(rec.part),]
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+names(rec.part)<-tolower(names(rec.part))
+rec.part <- rec.part %>% mutate(sequencial.prestador.conta=NULL,sigla.da.ue=NULL,
+                                nome.da.ue=NULL, numero.recibo.eleitoral=NULL)
+for(j in com){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j)) %>% data.frame()
+  x$tipo.doacao<-"comite"
+  if(j==com[1]){rec.com<-x}else{rec.com<-rbind(rec.com,x)}
+  rm(x)
+}
+rec.com<-rec.com[!duplicated(rec.com),]
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+
+for(j in cand){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j)) %>% data.frame()
+  x$tipo.doacao<-"candidato"
+  if(length(grep("_sup.txt",j))>0){
+    x[,setdiff(names(rec.cand),names(x))]<-NA
+    rec.cand[,setdiff(names(x),names(rec.cand))]<-NA
+    x<-x[,names(rec.cand)]
+  }
+  if(j==cand[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rm(x)
+}
+rec.cand<-rec.cand[!duplicated(rec.cand),]
+```
+
+Mantemos os nomes das variáveis em letra minúscula som palavras separadas por ".".
+```{r }
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+```
+
+Retiramos variáveis que cujos valores são praticamente todos vazios
+```{r }
+rec.cand <- rec.cand %>%
+  mutate(sigla.da.ue=NULL, nome.da.ue=NULL, numero.recibo.eleitoral=NULL)
+```
+
+Podemos deletar os arquivos (opcional):
+```{r }
+# file.remove(list.files("prestacao_final_2014")) # Opcional
+```
+
+Renomeamos as variáveis
+```{r }
+rec.part<-rename(rec.part, tipo.com.dir = tipo.diretorio)
+rec.com<-rename(rec.com, tipo.com.dir = tipo.comite)
+```
+
+Elaboramos variáveis vazias para parear os bancos:
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.com[,setdiff(names(rec.part),names(rec.com))]<-NA
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.part[,setdiff(names(rec.com),names(rec.part))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+rec.cand[,setdiff(names(rec.part),names(rec.cand))]<-NA
+rec.com<-data.frame(rec.com)
+rec.part<-data.frame(rec.part)
+rec.cand<-data.frame(rec.cand)
+```
+
+Unimos os bancos:
+```{r }
+rec.14<-rbind(rec.cand, rec.com[,names(rec.cand)]) %>% 
+  rbind(rec.part[,names(rec.cand)])
+rm(rec.cand,rec.part,rec.com)
+names(rec.14)<-tolower(names(rec.14))
+```
+
+Salvamos o banco:
+```{r }
+# Criamos a pasta para alocar os bancos tradados:
+dir.create(file.path(dir.proj, "bancos.tratados"), showWarnings = FALSE)
+# Salvamos:
+save(rec.14, file=file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+```
+
+Salvamos os nomes do banco. Este procedimento ser útil para parear todas as eleições.
+```{r }
+nomes<-names(rec.14)
+save(nomes, file=file.path(dir.proj,"bancos.tratados","nomes.variaveis.RData"))
+rm(rec.14)
+```
+
+### 1.2. Leitura dos bancos de Despesas
+
+Os procedimentos dessa seção são semelhantes ao da seção anterior (1.1)
+
+Para verificar os arquivos que deverão ser lidos:
+```{r }
+desp<-list.files(pasta)[grep("despesa",list.files(pasta))]
+part<-desp[grep("partido",desp)]
+com<-desp[grep("comite",desp)]
+cand<-desp[grep("candidato",desp)]
+```
+
+Os loopings fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas
+```{r }
+for(j in part){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j)) %>% data.frame()
+  x$tipo.doacao<-"diretorio"
+  if(length(grep("_sup.txt",j))>0){
+    x[, setdiff(names(rec.part),names(x))]<-NA
+    rec.part[, setdiff(names(x), names(rec.part))]<-NA
+  }
+  names(x)<-gsub(" ", ".", names(x))
+  if(j==part[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rm(x)
+}
+rec.part<-rec.part[!duplicated(rec.part),]
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+
+for(j in com){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"comite"
+  if(j==com[1]){rec.com<-x}else{rec.com<-rbind(rec.com,x)}
+  rm(x)
+}
+rec.com<-rec.com[!duplicated(rec.com),]
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+
+for(j in cand){
+  print(j)
+  x<-data.table::fread(file.path(pasta, j))
+  x$tipo.doacao<-"candidato"
+  if(length(grep("_sup.txt",j))>0){
+    names(x)<-gsub(" ", ".", names(x))
+    names(x)[15]<-"Tipo.do.documento"
+    rec.cand[, setdiff(names(x), names(rec.cand))]<-NA
+  }
+  names(x)<-gsub(" ", ".", names(x))
+  if(j==cand[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rec.cand<-rec.cand[!duplicated(rec.cand),]
+  rm(x)
+}
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+```
+
+Podemos deletar os arquivos (opcional):
+```{r }
+# file.remove(desp) # Opcional
+```
+
+Substituimos nomes de variáveis para viabilizar o pareamento:
+```{r }
+rec.part<-rename(rec.part, tipo.com.dir = tipo.diretorio)
+rec.com<-rename(rec.com, tipo.com.dir = tipo.comite)
+
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.com[,setdiff(names(rec.part),names(rec.com))]<-NA
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.part[,setdiff(names(rec.com),names(rec.part))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+rec.com<-data.frame(rec.com)
+rec.part<-data.frame(rec.part)
+rec.cand<-data.frame(rec.cand)
+```
+
+Unimos os bancos:
+```{r }
+desp.14<-rbind(rec.cand, rec.com[,names(rec.cand)]) %>% 
+  rbind(rec.part[,names(rec.cand)])
+rm(rec.cand,rec.part,rec.com)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.14, file=file.path(dir.proj,"bancos.tratados","desp.14.RData"))
+```
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.desp.14<-names(desp.14)
+save(nomes.desp.14, file=file.path(dir.proj,"bancos.tratados","nomes.desp.14.RData"))
+rm(desp.14)
+```
+
+## 2. Eleições de 2010
+
+### 2.1. Receitas
+
+Para verificar os arquivos que deverão ser lidos:
+```{r }
+pasta<-file.path(dir.proj,"2010") # Informamos a pasta
+estados<-list.files(file.path(pasta, "partido")) # Obtemos os arquivos
+```
+
+Os loopings a seguir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas
+```{r }
+for(j in estados){
+  print(j)
+  x<-read.table(file.path(pasta, "partido",j,"ReceitasPartidos.txt"),
+                fill=T,sep = ";",header = T)
+  x$tipo.doacao<-"diretorio"
+  if(j==estados[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rm(x)
+}
+rec.part<-rec.part[!duplicated(rec.part),]
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+
+for(j in estados){
+  print(j)
+  x<-read.table(file.path(pasta, "comite",j,"ReceitasComites.txt"),
+                fill=T,sep = ";",header = T)
+  x$tipo.doacao<-"comite"
+  if(j==estados[1]){rec.com<-x}else{rec.com<-rbind(rec.com,x)}
+  rm(x)
+}
+rec.com<-rec.com[!duplicated(rec.com),]
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+
+for(j in estados){
+  print(j)
+  x<-read.table(file.path(pasta, "candidato",j,"ReceitasCandidatos.txt"),
+                fill=T,sep = ";",header = T)
+  x$tipo.doacao<-"candidato"
+  if(j==estados[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rm(x)
+}
+rec.cand<-rec.cand[!duplicated(rec.cand),]
+```
+
+Substituimos nomes diferentes que representam as mesmas variáveis e incluímos variáveis com missings para unir os bancos.
+```{r }
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+rec.part<-rename(rec.part, tipo.com.dir=tipo.partido)
+rec.com<-rename(rec.com, tipo.com.dir=tipo.comite)
+rec.cand$entrega.em.conjunto.<-NULL #Esta variável foi exclu?da por ser in?til
+rec.cand[,setdiff(names(rec.part),names(rec.cand))]<-NA
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+```
+
+Unimos os bancos:
+```{r }
+rec.10<-rbind(rec.cand, rec.com[,names(rec.cand)]) %>% 
+  rbind(rec.part[,names(rec.cand)])
+rm(rec.cand,rec.part,rec.com)
+```
+
+Salvamos o banco:
+```{r }
+save(rec.10, file=file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+```
+
+Carregamos e salvamos os nomes das variáveis do banco.
+```{r }
+nomes2<-names(rec.10)
+load(file.path(dir.proj,"bancos.tratados","nomes.variaveis.RData"))
+nomes<-c(nomes, nomes2) %>% unique()
+save(nomes, file=file.path(dir.proj,"bancos.tratados","nomes.variaveis.rec.RData"))
+rm(rec.10)
+```
+
+### 2.1. Despesas
+
+Para verificar os arquivos que deverão ser lidos:
+```{r }
+estados<-list.files(file.path(pasta, "partido"))
+```
+
+Os loopings a seguir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas:
+```{r }
+for(j in estados){
+  print(j)
+  x<-read.table(file.path(pasta, "partido",j,"DespesasPartidos.txt"),
+                fill=T,sep = ";",header = T)
+  x$tipo.doacao<-"diretorio"
+  if(j==estados[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rec.part<-rec.part[!duplicated(rec.part),]
+  rm(x)
+}
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+rec.part$cpf.cnpj.do.fornecedor <- as.character(rec.part$cpf.cnpj.do.fornecedor)
+
+for(j in estados){
+  print(j)
+  x<-read.table(file.path(pasta, "comite",j,"DespesasComites.txt"),
+                fill=T,sep = ";",header = T)
+  x$tipo.doacao<-"comite"
+  if(j==estados[1]){rec.com<-x}else{rec.com<-rbind(rec.com,x)}
+  rec.com<-rec.com[!duplicated(rec.com),]
+  rm(x)
+}
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+rec.com$cpf.cnpj.do.fornecedor <- as.character(rec.com$cpf.cnpj.do.fornecedor)
+
+for(j in estados){
+  print(j)
+  x<-read.table(file.path(pasta, "candidato",j,"DespesasCandidatos.txt"),
+                fill=T,sep = ";",header = T)
+  x$tipo.doacao<-"candidato"
+  if(j==estados[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rec.cand<-rec.cand[!duplicated(rec.cand),]
+  rm(x)
+}
+```
+
+Substituimos nomes diferentes que representam as mesmas variáveis e incluímos variáveis com missings para unir os bancos.
+```{r }
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+rec.cand$cpf.cnpj.do.fornecedor <- as.character(rec.cand$cpf.cnpj.do.fornecedor)
+
+rec.part<-rename(rec.part, tipo.com.dir=tipo.partido)
+rec.com<-rename(rec.com, tipo.com.dir=tipo.comite)
+
+rec.cand$entrega.em.conjunto.<-NULL #Esta variável foi excluída por ser in?til
+```
+
+Acrescentamos variáveis que faltam em alguns bancos.
+```{r }
+rec.cand[,setdiff(names(rec.part),names(rec.cand))]<-NA
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+```
+
+Unimos os bancos.
+```{r }
+desp.10<-rbind(rec.cand, rec.com[,names(rec.cand)]) %>% 
+  rbind(rec.part[,names(rec.cand)])
+rm(rec.cand,rec.part,rec.com)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.10, file=file.path(dir.proj,"bancos.tratados","desp.10.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.desp.10<-names(desp.10)
+save(nomes.desp.10, file=file.path(dir.proj,"bancos.tratados","nomes.desp.10.RData"))
+rm(desp.10)
+```
+
+## 3. Eleições de 2006
+
+### 3.1. Receitas
+
+Para verificar os arquivos que deverão ser lidos
+```{r }
+pasta<-file.path(dir.proj,"2006") #Informamos a pasta
+diretorio<-file.path(pasta,"prestacao_contas_2006/2006")
+```
+
+Para ler os arquivos.
+```{r }
+# Antes de ler o arquivo dos comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(diretorio, "Comitê",'Receita',"ReceitaComitê.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub("\"","",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(diretorio, "Comitê",'Receita',"ReceitaComitê2.txt"), 
+            row.names = F, col.names = F)
+
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(diretorio, "Comitê",'Receita',"ReceitaComitê2.txt"),
+                   fill=T,sep = ";",header = T, quote = "")
+
+# Abrimos o arquivo referente aos candidatos:
+rec.cand<-read.csv2(file.path(diretorio, "Candidato",'Receita',"ReceitaCandidato.csv"),
+                    fill=T,sep = ";",header = T)
+
+# Padronizamos os nomes das variáveis:
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+```
+
+Substituimos nomes diferentes que representam as mesmas variáveis e incluímos variáveis com missings para unir os bancos
+```{r }
+rec.cand$tipo.com.dir<-NA
+rec.cand<-rec.cand %>% rename(unidade.eleitoral=unidade.eleitoral.candidato,
+                              cnpj.cpf.doador=numero.cpf.cgc.doador)
+rec.com<-rec.com %>% rename(tipo.com.dir=x.ds.orgao, numero.partido=nr.partido,
+                            sigla.partido=sg.part, unidade.eleitoral=sg.ue,
+                            numero.cnpj.candidato=cnpj, valor.receita=vr.receita,
+                            data.receita=dt.receita, tipo.receita=rtrim.ltrim.dr.ds.titulo..,
+                            codigo.tipo.receita=cd.titulo, codigo.tipo.recurso=rv.meaning,
+                            descricao.tipo.recurso=tp.recurso, nome.doador=no.doador,
+                            cnpj.cpf.doador=cd.cpf.cgc.doa, unidade.eleitoral.doador=no.ue,
+                            situacao.cadastral=situacaocadastral.)
+```
+
+Acrescentamos variáveis que faltam em alguns bancos para viabilizar o pareamento.
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos:
+```{r }
+rec.06<-rbind(rec.cand, rec.com[,names(rec.cand)]) 
+rm(rec.cand,rec.com)
+```
+
+Salvamos o banco:
+```{r }
+save(rec.06, file=file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+```
+
+Carregamos e salvamos os nomes das variáveis do banco.
+```{r }
+nomes2<-names(rec.06)
+load(file.path(dir.proj,"bancos.tratados","nomes.variaveis.rec.RData"))
+nomes.rec<-c(nomes, nomes2) %>% unique()
+save(nomes.rec, file=file.path(dir.proj,"bancos.tratados","nomes.variaveis.rec.RData"))
+rm(rec.06)
+```
+
+### 3.2. Despesas
+
+Para verificar os arquivos que dever?o ser lidos
+```{r }
+diretorio<-file.path(pasta,"prestacao_contas_2006/2006")
+```
+
+Para ler os arquivos:
+```{r }
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(diretorio, "Comitê",'Despesa',"DespesaComitê.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub("\"","",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(diretorio, "Comitê",'Despesa',"DespesaComitê2.csv"), 
+            row.names = F, col.names = F)
+
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(diretorio, "Comitê",'Despesa',"DespesaComitê2.csv"),
+                   fill=T,sep = ";",header = T, quote = "")
+
+rec.cand<-read.csv2(file.path(diretorio, "Candidato",'Despesa',"DespesaCandidato.csv"),
+                            fill=T,sep = ";",header = T)
+```
+
+Alteramos os nomes das variáveis para viabilizar o pareamento:
+```{r }
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+```
+
+Substituímos nomes diferentes que representam as mesmas variáveis e incluímos variáveis com missings para unir os bancos.
+```{r }
+names(rec.com)[8]<-"tipo.despesa"
+rec.cand$tipo.com.dir<-NA
+rec.cand<-rec.cand %>% rename(cnpj.candidato=numero.cnpj.candidato)
+rec.com<-rec.com %>% rename(tipo.com.dir=x.ds.orgao, numero.partido=nr.partido,
+                            sigla.partido=sg.part,unidade.eleitoral.candidato=sg.ue,
+                            cnpj.candidato=cnpj, valor.despesa=vr.despesa,
+                            data.despesa=dt.doc.desp, codigo.tipo.despesa=cd.titulo, 
+                            descricao.forma.pagamento=rv.meaning,
+                            codigo.forma.pagamento=tp.recurso,
+                            numero.documento=nr.doc.desp,tipo.documento=rv.meaning.1,
+                            codigo.tipo.documento=cd.doc,nome.fornecedor=no.for,
+                            numero.cpf.cgc.fornecedor=cd.cpf.cgc,
+                            unidade.eleitoral.fornecedor=no.ue,
+                            situacao.cadastral=situacaocadastral.)
+```
+
+Acrescentamos variáveis que faltam em alguns bancos.
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos:
+```{r }
+rec.com<-data.frame(rec.com)
+rec.cand<-data.frame(rec.cand)
+desp.06<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.06, file=file.path(dir.proj,"bancos.tratados","desp.06.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+save(nomes.desp.06, file=file.path(dir.proj,"bancos.tratados","nomes.desp.06.RData"))
+rm(desp.06)
+```
+
+
+## 4. Eleições de 2002
+
+### 4.1. Receitas
+
+Para verificar os arquivos que deverão ser lidos
+```{r }
+diretorio<-file.path(dir.proj,"2002","prestacao_contas_2002",'2002')
+```
+
+Para ler os arquivos.
+```{r }
+rec.com<-read.csv2(file.path(diretorio, "Comitê",'Receita',"ReceitaComite.csv"),
+                   fill=T,sep = ";",header = T, quote = "", encoding = "UTF-8")
+rec.cand<-data.table::fread(file.path(diretorio, "Candidato",'Receita',"ReceitaCandidato.csv"),
+                            fill=T,sep = ";",header = T, encoding = "UTF-8")
+```
+
+Padronizamos os nomes das variáveis para viabilizar o pareamento.
+```{r }
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+
+# Mudamos nomes de variáveis
+rec.com<-rec.com %>% rename(cd.cpf.cgc=cd.cpf.cgc.doa, sg.uf=x.u.feff.sg.uf)
+```
+
+
+Acrescentamos variáveis que faltam em alguns bancos:
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos:
+```{r }
+rec.cand<-data.frame(rec.cand)
+rec.com<-data.frame(rec.com)
+rec.02<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvamos o arquivo:
+```{r }
+save(rec.02, file=file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+```
+
+Carregamos e salvamos os nomes das variáveis do banco.
+```{r }
+nomes2<-names(rec.02)
+load(file.path(dir.proj,"bancos.tratados","nomes.variaveis.rec.RData"))
+nomes.rec<-c(nomes.rec, nomes2) %>% unique()
+save(nomes.rec, file=file.path(dir.proj,"bancos.tratados","nomes.variaveis.rec.RData"))
+rm(rec.02)
+```
+
+### 4.2 Despesa
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+diretorio<-file.path(dir.proj,"2002","prestacao_contas_2002",'2002')
+```
+
+Para ler os arquivos.
+```{r }
+#Antes alteramos o arquivo original manualmente. Abrimos o arquivo em txt e substituímos a expressão '";"' por ';'.
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(diretorio, "Comitê",'Despesa',"DespesaComite.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub("\"","",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(diretorio, "Comitê",'Despesa',"DespesaComite2.csv"), 
+            row.names = F, col.names = F)
+
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(diretorio, "Comitê",'Despesa',"DespesaComite2.csv"),
+                   fill=T,sep = ";",header = T, quote = "")
+
+rec.cand<-readLines(file.path(diretorio, "Candidato",'Despesa',"DespesaCandidato.csv"))
+rec.cand <- gsub("\";\"","ABCDE--",rec.cand)
+rec.cand <- gsub("\"","",rec.cand)
+rec.cand <- gsub("ABCDE--",";",rec.cand)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.cand, file.path(diretorio, "Candidato",'Despesa',"DespesaCandidato2.csv"), 
+            row.names = F, col.names = F)
+
+rec.cand<-read.csv2(file.path(diretorio, "Candidato",'Despesa',"DespesaCandidato2.csv"),
+                            fill=T,sep = ";",header = T, quote = "", encoding = "Latin-1")
+```
+
+Alteramos os nomes de variáveis para viabilizar o pareamento.
+```{r }
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+names(rec.com)[1]<-"sg.uf"
+```
+
+Acrescentamos variáveis que faltam em alguns bancos.
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos.
+```{r }
+desp.02<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvar o arquivo.
+```{r }
+save(desp.02, file=file.path(dir.proj,"bancos.tratados","desp.02.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.desp.02 <- names(desp.02)
+save(nomes.desp.02, file=file.path(dir.proj,"bancos.tratados","nomes.desp.02.RData"))
+rm(desp.02)
+```
+
+
+## 5. Pareando os dados das Eleições Gerais
+
+### 5.1 Receitas
+
+Carregamos os bancos.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+load(file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+load(file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+load(file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+```
+
+Padronizamos os nomes das variáveis para viabilizar o pareamento.
+```{r }
+names(rec.14)<-gsub("\\.\\.","\\.",names(rec.14))
+names(rec.10)<-gsub("\\.\\.","\\.",names(rec.10))
+names(rec.06)<-gsub("\\.\\.","\\.",names(rec.06))
+names(rec.02)<-gsub("\\.\\.","\\.",names(rec.02))
+
+rec.14<-rename(rec.14, cpf.candidato=cpf.do.candidato,
+               numero.documento=numero.do.documento,
+               cpf.cnpj.doador=cpf.cnpj.do.doador,
+               nome.doador=nome.do.doador,
+               nome.doador.rec.fed=nome.do.doador.receita.federal.,
+               uf.doador=sigla.ue.doador,
+               cod.setor.econ.doador=cod.setor.economico.do.doador,
+               setor.econ.doador=setor.economico.do.doador,
+               data.receita=data.da.receita,
+               descricao.receita=descricao.da.receita,
+               cpf.cnpj.doador.originario=cpf.cnpj.do.doador.originario,
+               nome.doador.originario=nome.do.doador.originario,
+               nome.doador.orig.rec.fed=nome.do.doador.originario.receita.federal.,
+               setor.economico.doador.orig=setor.economico.do.doador.originario,
+               tipo.documento=tipo.do.documento, 
+               cpf.vice.suplente=cpf.do.vice.suplente)
+
+rec.10<-rename(rec.10, cpf.candidato=cpf.do.candidato,
+               recibo.eleitoral=numero.recibo.eleitoral,
+               numero.documento=numero.do.documento,
+               cpf.cnpj.doador=cpf.cnpj.do.doador, nome.doador=nome.do.doador,
+               data.receita=data.da.receita,
+               descricao.receita=descricao.da.receita)
+
+rec.06<-rename(rec.06, uf=unidade.eleitoral,
+               uf.doador=unidade.eleitoral.doador,
+               cargo=descricao.cargo,
+               cpf.cnpj.doador=cnpj.cpf.doador,
+               especie.recurso=descricao.tipo.recurso,
+               municipio.doador=unidade.eleitoral.doador,
+               cnpj.candidato=numero.cnpj.candidato)
+
+rec.02<- rec.02 %>% rename(uf=sg.uf, sigla.partido=sg.part, numero.candidato=nr.cand,
+               cargo=ds.cargo, nome.candidato=no.cand,
+               cpf.cnpj.doador=cd.cpf.cgc, nome.doador=no.doador,
+               uf.doador=sg.uf.doador, data.receita=dt.receita,
+               valor.receita=vr.receita, especie.recurso=tp.recurso,
+               tipo.com.dir=ds.orgao)
+```
+
+
+Acrescentamos varáveis com células vazias para parear os dados
+```{r }
+rec.14[,setdiff(names(rec.10),names(rec.14))]<-NA
+rec.14[,setdiff(names(rec.06),names(rec.14))]<-NA
+rec.10[,setdiff(names(rec.14),names(rec.10))]<-NA
+rec.06[,setdiff(names(rec.14),names(rec.06))]<-NA
+rec.02[,setdiff(names(rec.14),names(rec.02))]<-NA
+
+rec.14$ano<-"2014"
+rec.10$ano<-"2010"
+rec.06$ano<-"2006"
+rec.02$ano<-"2002"
+```
+
+Ordenamos as variáveis segundo o banco de 2014.
+```{r }
+rec.10<-rec.10[,names(rec.14)]
+rec.06<-rec.06[,names(rec.14)]
+rec.02<-rec.02[,names(rec.14)]
+```
+
+Salvamos os bancos.
+```{r }
+save(rec.14, file=file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+save(rec.10, file=file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+save(rec.06, file=file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+save(rec.02, file=file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+rm(rec.14,rec.10,rec.06,rec.02)
+```
+
+
+### 5.2 Despesas
+
+Nesta seção, pareamos os bancos de despesa das eleições gerais.
+
+Carregamos os bancos.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.14.RData"))
+load(file.path(dir.proj,"bancos.tratados","desp.10.RData"))
+load(file.path(dir.proj,"bancos.tratados","desp.06.RData"))
+load(file.path(dir.proj,"bancos.tratados","desp.02.RData"))
+```
+
+Alteramos as variáveis para viabilizar o pareamento.
+```{r }
+names(desp.14)<-gsub("\\.\\.","\\.",names(desp.14))
+names(desp.10)<-gsub("\\.\\.","\\.",names(desp.10))
+names(desp.06)<-gsub("\\.\\.","\\.",names(desp.06))
+names(desp.02)<-gsub("\\.\\.","\\.",names(desp.02))
+
+desp.14<-rename(desp.14, tipo.documento=tipo.do.documento, numero.documento=numero.do.documento,
+                nome.fornecedor=nome.do.fornecedor,
+                cod.setor.econ.fornecedor=cod.setor.economico.do.fornecedor,
+                setor.econ.fornecedor=setor.economico.do.fornecedor,
+                data.despesa=data.da.despesa, descricao.despesa=descricao.da.despesa,
+                cpf.candidato=cpf.do.candidato, data.hora=data.e.hora) %>%
+  mutate(sigla.da.ue=NULL)
+
+desp.10<-rename(desp.10, data.hora=data.e.hora,
+                cpf.candidato=cpf.do.candidato, numero.documento=numero.do.documento,
+                cpf.cnpj.fornecedor=cpf.cnpj.do.fornecedor, nome.fornecedor=nome.do.fornecedor,
+                data.despesa=data.da.despesa, descricao.despesa=descricao.da.despesa,
+                tipo.documento=tipo.do.documento)
+
+desp.06<-rename(desp.06, 
+                uf=unidade.eleitoral.candidato, cargo=descricao.cargo,
+                cpf.cnpj.fornecedor=numero.cpf.cgc.fornecedor,
+                especie.recurso=descricao.forma.pagamento,
+                codigo.especie.recurso=codigo.forma.pagamento,
+                municipio.fornecedor=unidade.eleitoral.fornecedor)
+
+desp.02<-rename(desp.02, sequencial.candidato=x.sequencial.candidato,
+                uf=sg.uf, sigla.partido=sg.part, cargo=ds.cargo,
+                nome.candidato=no.cand, numero.candidato=nr.cand,
+                data.despesa=dt.doc.desp, cpf.cnpj.fornecedor=cd.cpf.cgc,
+                uf.fornecedor=sg.uf.fornecedor, nome.fornecedor=no.for,
+                valor.despesa=vr.despesa, tipo.despesa=ds.titulo.,
+                tipo.com.dir=ds.orgao)
+
+desp.14[,setdiff(names(desp.10),names(desp.14))]<-NA
+desp.14[,setdiff(names(desp.06),names(desp.14))]<-NA
+desp.14[,setdiff(names(desp.02),names(desp.14))]<-NA
+desp.10[,setdiff(names(desp.14),names(desp.10))]<-NA
+desp.06[,setdiff(names(desp.14),names(desp.06))]<-NA
+desp.02[,setdiff(names(desp.14),names(desp.02))]<-NA
+
+desp.14$ano<-'2014'
+desp.10$ano<-'2010'
+desp.06$ano<-'2006'
+desp.02$ano<-'2002'
+```
+
+
+Ordenamos as variáveis segundo o ano eleitoral de 2014.
+```{r }
+desp.10<-desp.10[,names(desp.14)]
+desp.06<-desp.06[,names(desp.14)]
+desp.02<-desp.02[,names(desp.14)]
+```
+
+Salvamos os bancos separadamente.
+```{r }
+save(desp.14, file=file.path(dir.proj,"bancos.tratados","desp.14.RData"))
+save(desp.10, file=file.path(dir.proj,"bancos.tratados","desp.10.RData"))
+save(desp.06, file=file.path(dir.proj,"bancos.tratados","desp.06.RData"))
+save(desp.02, file=file.path(dir.proj,"bancos.tratados","desp.02.RData"))
+rm(desp.14, desp.10, desp.06, desp.02)
+```
+
+
+
+# II. Nível Municipal
+
+Nesta seção, faremos a leitura e o pareamento dos bancos de receita e despesa das eleições municipais.
+
+## 1. 2016
+
+### 1.1 Receitas
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+pasta<-file.path(dir.proj,"2016") #Informamos a pasta
+desp<-list.files(pasta)[intersect(grep("prestacao_contas_final_2016",list.files(pasta)), # Seleciona os arquivos.
+                                  grep("receita",list.files(pasta)))]
+part<-desp[grep("partido",desp)] # Seleciona as receitas de partidos
+cand<-desp[grep("candidato",desp)] # Seleciona as receitas de candidatos
+```
+
+Os loopings a seguir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas.
+```{r }
+for(j in part){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"diretorio"
+  if(j==part[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rm(x)
+}
+rec.part<-rec.part[!duplicated(rec.part),]
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+
+for(j in cand){
+  print(j)
+  #if(length(grep("_sup.txt",j))>0){next}
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"candidato"
+  if(j==cand[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rm(x)
+}
+rec.cand<-rec.cand[!duplicated(rec.cand),]
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+```
+
+Podemos remover os arquivos (opcional).
+```{r }
+# file.remove(desp) #opcional
+```
+
+Alteramos variáveis para viabilizar o pareamento.
+```{r }
+rec.part<-rename(rec.part, tipo.com.dir=tipo.diretorio)
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.cand[,setdiff(names(rec.part),names(rec.cand))]<-NA
+rec.part<-data.frame(rec.part)
+rec.cand<-data.frame(rec.cand)
+```
+
+Unimos os bancos.
+```{r }
+rec.16<-rbind(rec.cand, rec.part[,names(rec.cand)])
+rm(rec.cand,rec.part)
+```
+
+Salvamos o banco.
+```{r }
+save(rec.16, file=file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+```
+
+Salvamos os nomes do banco. Este procedimento será útil para parear todos os bancos das eleições municipaus.
+```{r }
+nomes.rec.16<-names(rec.16)
+save(nomes.rec.16, file=file.path(dir.proj,"bancos.tratados","nomes.rec.16.RData"))
+rm(rec.16,nomes.rec.16)
+```
+
+
+### 1.2. Despesas
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+desp<-list.files(pasta)[intersect(grep("prestacao_contas_final_2016",list.files(pasta)),
+                             grep("despesa",list.files(pasta))) ]
+part<-desp[grep("partido",desp)]
+cand<-desp[grep("candidato",desp)]
+```
+
+Os loopings a sefuir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas.
+```{r }
+for(j in part){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"diretorio"
+  if(j==part[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rm(x)
+}
+rec.part<-rec.part[!duplicated(rec.part),]
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+
+for(j in cand){
+  print(j)
+  if(length(grep("_sup.txt",j))>0){next}
+  x<-data.table::fread(file.path(pasta,j),fill = T) %>% data.frame()
+  x$tipo.doacao<-"candidato"
+  if(j==cand[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rec.cand<-rec.cand[!duplicated(rec.cand),]
+  rm(x)
+}
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+```
+
+Podemos remover os arquivos (opcional).
+```{r }
+#file.remove(desp) # opcional
+```
+
+Alteramos os nomes das variáveis para viabilizar o pareamento dos dados.
+```{r }
+setdiff(names(rec.cand),names(rec.part))
+setdiff(names(rec.part),names(rec.cand))
+
+rec.part<-rename(rec.part, tipo.de.documento=tipo.do.documento)
+names(rec.part)[13]<-"cpf.cnpj.do.fornecedor"
+names(rec.part)[15]<-"nome.do.fornecedor..receita.federal."
+
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.cand[,setdiff(names(rec.part),names(rec.cand))]<-NA
+```
+
+Unimos os bancos.
+```{r }
+desp.16<-rbind(rec.cand, rec.part[,names(rec.cand)])
+rm(rec.cand,rec.part)
+```
+
+Salvamos o banco.
+```{r }
+save(desp.16, file=file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+```
+
+Salvamos os nomes das variáveis do banco. Este procedimento será útil para parear todos os bancos.
+```{r }
+nomes.desp.16<-names(desp.16)
+save(nomes.desp.16, file=file.path(dir.proj,"bancos.tratados","nomes.desp.16.RData"))
+rm(desp.16, nomes.desp.16)
+```
+
+
+## 2. Eleições de 2012
+
+### 2.1. Receitas
+
+Para verificar os arquivos que deverãoo ser lidos.
+```{r }
+pasta<-file.path(dir.proj,"2012") #Informamos a pasta
+desp<-list.files(pasta)[intersect(grep("_2012",list.files(pasta)),
+                                  grep("receita",list.files(pasta))) ]
+part<-desp[grep("partido",desp)]
+com<-desp[grep("comit",desp)]
+cand<-desp[grep("candidato",desp)]
+```
+
+Os loopings a seguir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas.
+```{r }
+for(j in part){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  if(j=="receitas_partidos_2012_BR.txt"){names(x)[10]<-"N?mero Recibo Eleitoral"}
+  x$tipo.doacao<-"diretorio"
+  x<-data.frame(x)
+  if(j==part[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rec.part<-rec.part[!duplicated(rec.part),]
+  rm(x)
+}
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+
+for(j in com){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"comite"
+  x<-data.frame(x)
+  if(j==com[1]){rec.com<-x}else{rec.com<-rbind(rec.com,x)}
+  rec.com<-rec.com[!duplicated(rec.com),]
+  rm(x)
+}
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+
+for(j in cand){
+  print(j)
+  if(length(grep("_brasil.txt",j))>0){next}
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"candidato"
+  x<-data.frame(x)
+  if(j==cand[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rec.cand<-rec.cand[!duplicated(rec.cand),]
+  rm(x)
+}
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+```
+
+Podemos remover os arquivos (opcional).
+```{r }
+# file.remove(desp) # Opcional
+```
+
+Alteramos os nomes das variáveis para viabilizar o pareamento.
+```{r }
+rec.com<-rename(rec.com,tipo.com.dir=tipo.comite)
+rec.part<-rename(rec.part, tipo.com.dir=tipo.diretorio)
+
+rec.part[,setdiff(names(rec.com),names(rec.part))]<-NA
+rec.com[,setdiff(names(rec.part),names(rec.com))]<-NA
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+```
+
+Unimos os bancos.
+```{r }
+rec.12<-rbind(rec.cand, rec.part[,names(rec.cand)]) %>%
+  rbind(rec.com[,names(rec.cand)])
+rm(rec.cand,rec.part,rec.com)
+```
+
+Salvamos o banco.
+```{r }
+save(rec.12, file=file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.rec.12<-names(rec.12)
+save(nomes.rec.12, file=file.path(dir.proj,"bancos.tratados","nomes.rec.12.RData"))
+rm(rec.12)
+```
+
+### 2.1. Despesas
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+pasta<-file.path(dir.proj,"2012") #Informamos a pasta
+desp<-list.files(pasta)[intersect(grep("_2012",list.files(pasta)),
+                                  grep("despesa",list.files(pasta))) ]
+part<-desp[grep("partido",desp)]
+com<-desp[grep("comit",desp)]
+cand<-desp[grep("candidato",desp)]
+```
+
+Os loopings a seguir fazem a leitura dos arquivos, agregando-os e retirando linhas duplicadas.
+```{r }
+for(j in part){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  if(j=="receitas_partidos_2012_BR.txt"){names(x)[10]<-"N?mero Recibo Eleitoral"}
+  x$tipo.doacao<-"diretorio"
+  x<-data.frame(x)
+  if(j==part[1]){rec.part<-x}else{rec.part<-rbind(rec.part,x)}
+  rm(x)
+}
+rec.part<-rec.part[!duplicated(rec.part),]
+names(rec.part)<-gsub(" ",".",tolower(iconv(names(rec.part), to = "ASCII//TRANSLIT")))
+
+for(j in com){
+  print(j)
+  x<-data.table::fread(file.path(pasta,j))
+  x$tipo.doacao<-"comite"
+  x<-data.frame(x)
+  if(j==com[1]){rec.com<-x}else{rec.com<-rbind(rec.com,x)}
+  rm(x)
+}
+rec.com<-rec.com[!duplicated(rec.com),]
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+
+for(j in cand){
+  print(j)
+  j<-cand[7]
+  if(length(grep("_brasil.txt",j))>0){next}
+  x<-data.table::fread(file.path(pasta,j)) %>% data.frame() %>%
+  mutate(tipo.doacao="candidato") #x$tipo.doacao<-"candidato"
+  if(j==cand[1]){rec.cand<-x}else{rec.cand<-rbind(rec.cand,x)}
+  rm(x)
+}
+rec.cand<-rec.cand[!duplicated(rec.cand),]
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+```
+
+Podemos remover os arquivos (opcional).
+```{r }
+# file.remove(desp) # Opcional
+```
+
+Alteramos nomes das variáveis para viabilizar o pareamento dos bancos.
+```{r }
+rec.com<-rename(rec.com,tipo.com.dir=tipo.comite)
+rec.part<-rename(rec.part, tipo.com.dir=tipo.diretorio)
+
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+rec.cand[,setdiff(names(rec.part),names(rec.cand))]<-NA
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.part[,setdiff(names(rec.cand),names(rec.part))]<-NA
+```
+
+Unimos os bancos.
+```{r }
+desp.12<-rbind(rec.cand, rec.part[,names(rec.cand)]) %>%
+  rbind(rec.com[,names(rec.cand)])
+rm(rec.cand,rec.part,rec.com)
+```
+
+Salvamos o banco.
+```{r }
+save(desp.12, file=file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.desp.12<-names(desp.12)
+save(nomes.desp.12, file=file.path(dir.proj,"bancos.tratados","nomes.desp.12.RData"))
+rm(desp.12)
+```
+
+
+## 3. 2008
+
+### 3.1. Receitas
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+pasta<-file.path(dir.proj,"2008")
+```
+
+Para ler os arquivos.
+```{r }
+# O arquivo original foi previamente aberto em txt e salvo em csv com a codificação "UTF-8".
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(pasta, "receitas_comites_2008_brasil.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(pasta, "receitas_comites_2008_brasil2.csv"), 
+            row.names = F, col.names = F)
+
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(pasta, "receitas_comites_2008_brasil2.csv"),
+                   fill=T, sep = ";",header = T, quote = "",  encoding = "Latin-1")
+
+rec.cand<-read.csv2(file.path(pasta, "receitas_candidatos_2008_brasil.csv"), 
+                   header = T, sep = ";", encoding = "Latin-1")
+```
+
+Alteramos nomes de variáveis para viabilizar o pareamento dos dados.
+```{r }
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+
+rec.cand$tipo.com.dir<-NA
+rec.com<-rec.com %>% rename(tipo.com.dir=x.ds.orgao)
+rec.cand<-rec.cand %>% rename(nome.candidato=nm.candidato,sexo.candidato=sexo,
+                              cargo=ds.cargo, codigo.cargo=cd.cargo,
+                              numero.candidato=nr.candidato,
+                              titulo.eleitor.candidato=ds.nr.titulo.eleitor,
+                              cpf.candidato=cd.num.cpf,cnpj.candidato=cd.num.cnpj,
+                              tipo.receita=ds.titulo,
+                              nome.administrador=nm.adm,cpf.administrador=cd.cpf.adm)
+rec.com<-rec.com %>% rename(cnpj.candidato=nr.cnpj,
+                            tipo.receita=rtrim.ltrim.dr.ds.titulo..,
+                            nome.administrador=nm.membro,
+                            cpf.administrador=nr.cpf)
+```
+
+Acrescentamos variáveis que faltam em alguns bancos para viabilizar o pareamento.
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos.
+```{r }
+rec.08<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvamos o banco.
+```{r }
+save(rec.08, file=file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+save(nomes.rec.08, file=file.path(dir.proj,"bancos.tratados","nomes.rec.08.RData"))
+rm(rec.08)
+```
+
+
+### 3.2. Despesas
+
+Para ler os arquivos.
+```{r }
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(pasta, "despesas_comites_2008_brasil.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(pasta, "despesas_comites_2008_brasil2.csv"), 
+            row.names = F, col.names = F)
+
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(pasta, "despesas_comites_2008_brasil2.csv"),
+                   fill=T, sep = ";",header = T, quote = "",  encoding = "Latin-1")
+
+rec.cand<-read.csv2(file.path(pasta, "despesas_comites_2008_brasil2.csv"),
+                    fill=T, sep = ";",header = T, quote = "",  encoding = "Latin-1")
+```
+
+Alteramos os nomes das variáveis para viabilizar o pareamento dos dados.
+```{r }
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+
+names(rec.com)[10]<-"ds.titulo"
+rec.com<-rename(rec.com, cpf.presidente=nr.cpf., nome.presidente=nm.membro)
+rec.cand<-rename(rec.cand, ds.titulo=rtrim.ltrim.dr.ds.titulo.., 
+                 cpf.administrador=nr.cpf., nome.administrador=nm.membro)
+rec.com$cpf.administrador<-NA
+rec.cand$cpf.presidente<-NA
+rec.com$nome.administrador<-NA
+rec.cand$nome.presidente<-NA
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Ordenamos as variáveis dos bancos.
+```{r }
+rec.com<-rec.com[,names(rec.cand)]
+```
+
+Unimos os bancos.
+```{r }
+desp.08<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvamos o banco.
+```{r }
+save(desp.08, file=file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.desp.08<-names(desp.08)
+save(nomes.desp.08, file=file.path(dir.proj,"bancos.tratados","nomes.desp.08.RData"))
+rm(desp.08)
+```
+
+
+### 4.1. Receitas
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+diretorio<-file.path(dir.proj,"2004", "2004")
+```
+
+Para ler os arquivos.
+```{r }
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(diretorio, "Comit^",'Receita',"ReceitaComit^.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub("\"","",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(diretorio, "Comit^",'Receita',"ReceitaComitê2.txt"), 
+            row.names = F, col.names = F)
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(diretorio, "Comit^",'Receita',"ReceitaComitê2.txt"),
+                   fill=T,sep = ";",header = T, quote = "", encoding = "Latin-1")
+
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.cand<-readLines(file.path(diretorio, "Candidato",'Receita',"ReceitaCandidato.csv"))
+rec.cand <- gsub("\";\"","ABCDE--",rec.cand)
+rec.cand <- gsub("\"","",rec.cand)
+rec.cand <- gsub(";",",",rec.cand)
+rec.cand <- gsub("ABCDE--",";",rec.cand)
+# Escrevemos o arquivo em texto:
+write.table(rec.cand, file.path(diretorio, "Candidato",'Receita',"ReceitaCandidato2.csv"), 
+            row.names = F, col.names = F)
+# Abrimos o arquivo textual como data.frame
+rec.cand<-read.csv2(file.path(diretorio, "Candidato",'Receita',"ReceitaCandidato2.csv"),
+                    fill=T,sep = ";",header = T, quote = "", encoding = "Latin-1")
+```
+
+Alteramos os nomes das variáveis para viabilizar o pareamento dos dados.
+```{r }
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+
+rec.com<-rec.com %>% rename(tipo.com.dir=x.ds.orgao,
+                            tp.recurso=decode.rec.tp.recurso.0..emespecie..1..cheque..2..estimado...naoinformado..,
+                            cd.tp.recurso=tp.recurso, ds.titulo=rtrim.ltrim.dr.cd.titulo..)
+rec.cand<-rec.cand %>% rename(ds.titulo=rtrim.ltrim.dr.ds.titulo..,
+                              cd.tp.recurso=tp.recurso, no.cand=x.no.cand,
+                              tp.recurso=decode.rec.tp.recurso.0..emespecie..1..cheque..2..estimado...naoinformado..)
+```
+
+Por erro do prório TSE, a variável ds.titulo, que deveria descrever o tipo de doador, assumeos mesmos valores da variável cd.titulo no banco de receitas dos comitês partidários. A variável cd.titulo apresenta o código do tipo de doador. A partir do banco de receitas dos candidatos, verificamos a descrição vinculada a cada código, para preencher o banco de receita dos comitês.
+```{r }
+x <- rec.cand %>% group_by(ds.titulo, cd.titulo) %>%
+  summarise() %>% data.frame()
+rec.com <- rec.com %>% left_join(x, by="cd.titulo") %>%
+  rename(ds.titulo=ds.titulo.y) %>% mutate(ds.titulo.x=NULL) %>% data.frame()
+rm(x)
+```
+
+Acrescentamos variáveis que faltam em alguns bancos.
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos.
+```{r }
+rec.04<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvamos o banco.
+```{r }
+save(rec.04, file=file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.rec.04<-names(rec.04)
+save(nomes.rec.04, file=file.path(dir.proj,"bancos.tratados","nomes.rec.04.RData"))
+rm(rec.04)
+```
+
+
+### 4.2. Despesas
+
+Para verificar os arquivos que deverão ser lidos.
+```{r }
+diretorio<-file.path(dir.proj,"2004","2004")
+```
+
+Lemos os arquivos.
+```{r }
+# Antes de ler o arquivo dos Comitês, temos que ler o arquivo como texto e corrigir erros:
+rec.com<-readLines(file.path(diretorio, "Comit^",'Despesa',"DespesaComit^.csv"))
+rec.com <- gsub("\";\"","ABCDE--",rec.com)
+rec.com <- gsub("\"","",rec.com)
+rec.com <- gsub(";",",",rec.com)
+rec.com <- gsub("ABCDE--",";",rec.com)
+
+# Escrevemos o arquivo em texto:
+write.table(rec.com, file.path(diretorio, "Comit^",'Despesa',"ReceitaComitê2.txt"), 
+            row.names = F, col.names = F)
+
+# Abrimos o arquivo textual como data.frame
+rec.com<-read.csv2(file.path(diretorio, "Comit^",'Despesa',"ReceitaComitê2.txt"),
+                   fill=T,sep = ";",header = T, quote = "", encoding = "Latin-1")
+rec.cand<-read.csv2(file.path(diretorio, "Candidato",'Despesa',"DespesaCandidato.csv"),
+                    fill=T,sep = ";",header = T, quote = "", encoding = "Latin-1")
+```
+
+Alteramos os nomes das variáveis para viabilizar o pareamento dos dados.
+```{r }
+names(rec.com)<-gsub(" ",".",tolower(iconv(names(rec.com), to = "ASCII//TRANSLIT")))
+names(rec.com)<-gsub("_",".",names(rec.com))
+names(rec.cand)<-gsub(" ",".",tolower(iconv(names(rec.cand), to = "ASCII//TRANSLIT")))
+names(rec.cand)<-gsub("_",".",names(rec.cand))
+
+names(rec.cand)<-gsub("x.","",names(rec.cand))
+names(rec.cand)<-ifelse(substr(names(rec.cand), nchar(names(rec.cand)),nchar(names(rec.cand)))==".",
+                        substr(names(rec.cand), 1,nchar(names(rec.cand))-1),names(rec.cand))
+rec.com <- rec.com %>% 
+  rename(rv.meaning=rv.meaning., ds.orgao=x.ds.orgao, 
+         ds.titulo=cd.titulo, cd.titulo=rtrim.ltrim.dr.cd.titulo..,
+         cd.tp.recurso=tp.recurso, tp.recurso=decode.rec.tp.recurso.0..emespecie..1..cheque..2..estimado...naoinformado..)
+rec.cand <- rec.cand %>% 
+  rename(ds.titulo=rtrim.ltrim.dr.ds.titulo..,
+         cd.tp.recurso=tp.recurso, tp.recurso=decode.rec.tp.recurso.0..emespecie..1..cheque..2..estimado...naoinformado..)
+```
+
+Por erro do prório TSE, a variável ds.titulo, que deveria descrever o tipo de doador, assumeos mesmos valores da variável cd.titulo no banco de receitas dos comitês partidários. A variável cd.titulo apresenta o código do tipo de doador. A partir do banco de receitas dos candidatos, verificamos a descrição vinculada a cada código, para preencher o banco de receita dos comitês.
+```{r }
+x <- rec.cand %>% group_by(ds.titulo, cd.titulo) %>% summarise() %>% data.frame() %>% 
+  mutate(ds.titulo=as.character(ds.titulo), cd.titulo=as.character(cd.titulo),
+         ds.titulo=gsub("\"","",ds.titulo), cd.titulo=gsub("\"","",cd.titulo)) 
+rec.com <- rec.com %>% 
+  mutate(ds.titulo=as.character(ds.titulo), cd.titulo=as.character(cd.titulo)) %>% 
+  left_join(x, by="cd.titulo") %>% rename(ds.titulo=ds.titulo.y) %>% mutate(ds.titulo.x=NULL)
+rm(x)
+```
+
+Alteramos nomes de variáveis para viabilizar o pareamento dos bancos.
+```{r }
+rec.com[,setdiff(names(rec.cand),names(rec.com))]<-NA
+rec.cand[,setdiff(names(rec.com),names(rec.cand))]<-NA
+rec.cand$tipo.doacao<-"candidato"
+rec.com$tipo.doacao<-"comite"
+```
+
+Unimos os bancos.
+```{r }
+desp.04<-rbind(rec.cand, rec.com[,names(rec.cand)])
+rm(rec.cand,rec.com)
+```
+
+Salvamos o banco.
+```{r }
+save(desp.04, file=file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+```
+
+Salvamos os nomes das variáveis do banco.
+```{r }
+nomes.desp.04<-names(desp.04)
+save(nomes.desp.04, file=file.path(dir.proj,"bancos.tratados","nomes.desp.04.RData"))
+rm(desp.04)
+```
+
+
+## 5. Pareando os dados das Eleições municipais.
+
+Nesta seção ordenamos as colunas dos bancos a fim de viabilizar o pareamento dos bancos. 
+
+### 5.1 Receitas
+
+#### Eleições de 2016.
+Carregamos os bancos.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(rec.16)<-gsub("\\.\\.","\\.",names(rec.16))
+
+rec.16<-rename(rec.16, codigo.municipio=sigla.da.ue, municipio=nome.da.ue,
+               cpf.candidato=cpf.do.candidato, cpf.vice.suplente=cpf.do.vice.suplente,
+               recibo.eleitoral=numero.recibo.eleitoral, numero.documento=numero.do.documento,
+               cpf.cnpj.doador=cpf.cnpj.do.doador, nome.doador=nome.do.doador,
+               nome.doador.rec.fed=nome.do.doador.receita.federal., uf.doador=sigla.ue.doador,
+               cod.setor.econ.doador=cod.setor.economico.do.doador,
+               setor.econ.doador=setor.economico.do.doador, data.receita=data.da.receita,
+               descricao.receita=descricao.da.receita,
+               cpf.cnpj.doador.originario=cpf.cnpj.do.doador.originario,
+               nome.doador.originario=nome.do.doador.originario,
+               nome.doador.orig.rec.fed=nome.do.doador.originario.receita.federal.,
+               setor.econ.doador.orig=setor.economico.do.doador.originario)
+```
+
+Salvamos os nomes das variáveis e o banco novamente.
+```{r }
+nomes.rec.16<-names(rec.16)
+save(nomes.rec.16, file =  file.path(dir.proj,"bancos.tratados","nomes.rec.16.RData"))
+save(rec.16, file =  file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+
+rm(list = ls())
+```
+
+#### 2012
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(rec.12)<-gsub("\\.\\.","\\.",names(rec.12))
+rec.12<-rename(rec.12, codigo.municipio=numero.ue, cpf.candidato=cpf.do.candidato,
+               recibo.eleitoral=numero.recibo.eleitoral, numero.documento=numero.do.documento,
+               cpf.cnpj.doador=cpf.cnpj.do.doador, nome.doador=nome.do.doador,
+               nome.doador.rec.fed=nome.do.doador.receita.federal.,
+               uf.doador=sigla.ue.doador, cod.setor.econ.doador=cod.setor.economico.do.doador,
+               setor.econ.doador=setor.economico.do.doador, data.receita=data.da.receita,
+               descricao.receita=descricao.da.receita, tipo.documento=tipo.do.documento)
+```
+
+Salvamos os nomes das variáveis e o banco novamente.
+```{r }
+nomes.rec.12<-names(rec.12)
+save(nomes.rec.12, file =  file.path(dir.proj,"bancos.tratados","nomes.rec.12.RData"))
+save(rec.12, file =  file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+rm(list = ls())
+```
+
+### 2008
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(rec.08)<-gsub("\\.\\.","\\.",names(rec.08))
+rec.08<-rename(rec.08, uf=sg.ue.superior, municipio=nm.ue,
+               codigo.municipio=sg.ue, cpf.cnpj.doador=cd.cpf.cnpj.doador,
+               nome.doador=nm.doador, uf.doador=sg.ue.superior.1,
+               data.receita=dt.receita, valor.receita=vr.receita,
+               especie.recurso=ds.esp.recurso, numero.partido=nr.partido,
+               codigo.tipo.receita=cd.titulo, codigo.tipo.recurso=cd.esp.recurso,
+               municipio.doador=nm.ue.1, codigo.municipio.doador=sg.ue.1,
+               situacao.cadastral=situacaocadastral, sigla.partido=sg.partido,
+               nome.administrador=nm.adm, cpf.administrador=cd.cpf.adm, tipo.receita=ds.titulo,
+               titulo.eleitoral.candidato=ds.nr.titulo.eleitor, cpf.candidato=cd.num.cpf,
+               cnpj.candidato=cd.num.cnpj, 
+               codigo.cargo=cd.cargo, numero.candidato=nr.candidato, nome.candidato=nm.candidato,
+               cargo=ds.cargo)
+```
+
+Salvamos os nomes das variáveis e o banco novamente.
+```{r }
+nomes.rec.08<-names(rec.08)
+save(nomes.rec.08, file =  file.path(dir.proj,"bancos.tratados","nomes.rec.08.RData"))
+save(rec.08, file =  file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+rm(list = ls())
+```
+
+
+#### 2004:
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(rec.04)<-gsub("\\.\\.","\\.",names(rec.04))
+rec.04<-rename(rec.04, nome.candidato=no.cand, cargo=ds.cargo, codigo.cargo=cd.cargo,
+               numero.candidato=nr.cand, uf=sg.ue.sup, municipio.doador=no.ue,
+               codigo.municipio.doador=sg.ue, numero.partido=nr.part,
+               sigla.partido=sg.part, valor.receita=vr.receita, data.receita=dt.receita,
+               tipo.receita=ds.titulo, codigo.tipo.recurso=cd.titulo,
+               especie.recurso=tp.recurso, codigo.tipo.recurso=cd.tp.recurso, 
+               nome.doador=no.doador, cpf.cnpj.doador=cd.cpf.cgc.doa)
+names(rec.04)[18]<-"situacao.cadastral"
+```
+
+Salvamos os nomes das variáveis e o banco novamente.
+```{r }
+nomes.rec.04<-names(rec.04)
+save(nomes.rec.04, file =  file.path(dir.proj,"bancos.tratados","nomes.rec.04.RData"))
+save(rec.04, file =  file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+rm(list = ls())
+```
+
+
+### Pareamento.
+
+Carregamos os nomes das variáveis dos bancos e o banco de 2016.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+
+load(file.path(dir.proj,"bancos.tratados","nomes.rec.16.RData"))
+load(file.path(dir.proj,"bancos.tratados","nomes.rec.12.RData"))
+load(file.path(dir.proj,"bancos.tratados","nomes.rec.08.RData"))
+load(file.path(dir.proj,"bancos.tratados","nomes.rec.04.RData"))
+```
+
+Em todos os bancos, acrescentamos as variáveis exclusivas dos demais bancos. As novas variáveis no entanto são preenchidas com `NA`. Posteriormente, ordenamos as variáveis para viabilizar o pareamento.
+```{r }
+nomes<- c(nomes.rec.12, nomes.rec.08, nomes.rec.04) %>% unique()
+rec.16[,setdiff(nomes, names(rec.16))]<-NA
+save(rec.16, file =  file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+ordem.nomes.rec.muni<-names(rec.16)
+save(ordem.nomes.rec.muni, file =  file.path(dir.proj,"bancos.tratados","ordem.nomes.rec.muni.RData"))
+rm(rec.16)
+
+load(file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+rec.12[,setdiff(ordem.nomes.rec.muni, names(rec.12))]<-NA
+rec.12<-rec.12[,ordem.nomes.rec.muni]
+save(rec.12, file =  file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+rm(rec.12)
+
+load(file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+rec.08[,setdiff(ordem.nomes.rec.muni, names(rec.08))]<-NA
+rec.08<-rec.08[,ordem.nomes.rec.muni]
+save(rec.08, file =  file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+rm(rec.08)
+
+load(file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+rec.04[,setdiff(ordem.nomes.rec.muni, names(rec.04))]<-NA
+rec.04<-rec.04[,ordem.nomes.rec.muni]
+save(rec.04, file =  file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+rm(rec.04)
+```
+
+
+
+### 5.2 Despesas
+
+Nesta seção, alteraremos e ordenaremos nomes de variáveis para viabilizar o pareamento dos bancos de despesa das eleições municipais.
+
+#### 2016
+
+Carregamos os bancos.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+```
+
+Alteramos as variáveis para o pareamento.
+```{r }
+names(desp.16)<-gsub("\\.\\.","\\.",names(desp.16))
+desp.16<-rename(desp.16, data.hora=data.e.hora, codigo.municipio=sigla.da.ue,
+                nome.municipio=nome.da.ue, cpf.candidato=cpf.do.candidato,
+                cpf.vice.suplente=cpf.do.vice.suplente, tipo.documento=tipo.de.documento,
+                numero.documento=numero.do.documento, cpf.cnpj.fornecedor=cpf.cnpj.do.fornecedor,
+                nome.fornecedor=nome.do.fornecedor,
+                nome.fornecedor.receita.federal=nome.do.fornecedor.receita.federal.,
+                cod.setor.econ.fornecedor=cod.setor.economico.do.fornecedor, 
+                setor.econ.fornecedor=setor.economico.do.fornecedor, data.despesa=data.da.despesa,
+                descricao.despesa=descricao.da.despesa,
+                sequencial.prestador.conta=sequencial.do.prestador.de.conta)
+desp.16$ano<-"2016"
+```
+
+Salvamos o banco e o nome das variáveis.
+```{r }
+nomes.desp.16<-names(desp.16)
+save(nomes.desp.16, file=file.path(dir.proj,"bancos.tratados","nomes.desp.16.RData"))
+save(desp.16, file=file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+rm(desp.16)
+```
+
+#### 2012
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(desp.12)<-gsub("\\.\\.","\\.",names(desp.12))
+desp.12<-rename(desp.12, data.hora=data.e.hora, cpf.candidato=cpf.do.candidato,
+                numero.documento=numero.do.documento, cpf.cnpj.fornecedor=cpf.cnpj.do.fornecedor,
+                nome.fornecedor=nome.do.fornecedor,
+                cod.setor.econ.fornecedor=cod.setor.economico.do.doador,
+                nome.fornecedor.receita.federal=nome.do.fornecedor.receita.federal.,
+                setor.econ.fornecedor=setor.economico.do.fornecedor,
+                data.despesa=data.da.despesa, descricao.despesa=descricao.da.despesa,
+                codigo.municipio=numero.ue, nome.municipio=municipio,
+                tipo.documento=tipo.do.documento)
+desp.12$ano<-"2012"
+```
+
+Salvamos os nomes das variáveis e o banco.
+```{r }
+nomes.desp.12<-names(desp.12)
+save(nomes.desp.12, file=file.path(dir.proj,"bancos.tratados","nomes.desp.12.RData"))
+save(desp.12, file=file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+rm(desp.12)
+```
+
+#### 2008
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(desp.08)<-gsub("\\.\\.","\\.",names(desp.08))
+desp.08<-rename(desp.08, uf=sg.ue.superior, codigo.municipio=sg.ue, 
+                nome.municipio=nm.ue, sigla.partido=sg.partido,
+                tipo.documento=ds.tipo.documento, 
+                numero.documento=ds.nr.documento, 
+                cpf.cnpj.fornecedor=cd.cpf.cnpj.fornecedor, nome.fornecedor=nm.fornecedor,
+                data.despesa=dt.despesa, valor.despesa=vr.despesa, tipo.despesa=ds.titulo, 
+                especie.recurso=ds.esp.recurso, cnpj.candidato=nr.cnpj, 
+                numero.partido=nr.partido, 
+                codigo.tipo.despesa=cd.titulo, codigo.especie.recurso=cd.esp.recurso,
+                codigo.tipo.documento=cd.tipo.documento, cod.municipio.fornecedor=sg.ue.1, 
+                municipio.fornecedor=nm.ue.1, situacao.cadastral=situacaocadastral,
+                tipo.com.dir=x.ds.orgao,
+                uf.fornecedor=sg.ue.superior.1)
+desp.08$ano<-"2008"
+```
+
+Salvamos os nomes das variáveis e o banco.
+```{r }
+nomes.desp.08<-names(desp.08)
+save(nomes.desp.08, file=file.path(dir.proj,"bancos.tratados","nomes.desp.08.RData"))
+save(desp.08, file=file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+rm(desp.08)
+```
+
+#### 2004
+
+Carregamos o banco.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+```
+
+Alteramos os nomes das variáveis para parear os dados.
+```{r }
+names(desp.04)<-gsub("\\.\\.","\\.",names(desp.04))
+desp.04<-rename(desp.04, nome.candidato=no.cand, cargo=ds.cargo, codigo.cargo=cd.cargo,
+                numero.candidato=nr.cand, uf=sg.ue.sup, nome.municipio=no.ue, 
+                codigo.municipio=sg.ue, numero.partido=nr.part, sigla.partido=sg.part, 
+                valor.despesa=vr.despesa, data.despesa=dt.doc.desp, tipo.despesa=ds.titulo, 
+                codigo.tipo.despesa=cd.titulo, especie.recurso=tp.recurso,
+                numero.documento=nr.doc.desp, tipo.documento=ds.tipo.documento,
+                codigo.tipo.documento=cd.doc, nome.fornecedor=no.for, cpf.cnpj.fornecedor=cd.cpf.cgc,
+                municipio.fornecedor=ds.munic, tipo.com.dir=ds.orgao, 
+                codigo.especie.recurso=cd.tp.recurso, situacao.cadastral=rv.meaning)
+desp.04$ano<-"2004"
+```
+
+Salvamos os nomes das variáveis e o banco.
+
+```{r }
+nomes.desp.04<-names(desp.04)
+save(nomes.desp.04, file=file.path(dir.proj,"bancos.tratados","nomes.desp.04.RData"))
+save(desp.04, file=file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+rm(desp.04)
+```
+
+#### Pareamos os bancos de despesa de 2016.
+
+Carregamos os nomes das variáveis dos bancos e o banco de 2016.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+
+load(file.path(dir.proj,"bancos.tratados","nomes.desp.16.RData"))
+load(file.path(dir.proj,"bancos.tratados","nomes.desp.12.RData"))
+load(file.path(dir.proj,"bancos.tratados","nomes.desp.08.RData"))
+load(file.path(dir.proj,"bancos.tratados","nomes.desp.04.RData"))
+```
+
+Em todos os bancos, acrescentamos as variáveis exclusivas dos demais bancos. As novas variáveis no entanto são preenchidas com `NA`. Posteriormente, ordenamos as variáveis para viabilizar o pareamento.
+```{r }
+nomes<- c(nomes.desp.12, nomes.desp.08, nomes.desp.04) %>% unique()
+desp.16[,setdiff(nomes, names(desp.16))]<-NA
+save(desp.16, file =  file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+ordem.nomes.desp.muni<-names(desp.16)
+save(ordem.nomes.desp.muni, file =  file.path(dir.proj,"bancos.tratados","ordem.nomes.desp.muni.RData"))
+rm(desp.16)
+
+load(file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+desp.12[,setdiff(ordem.nomes.desp.muni, names(desp.12))]<-NA
+desp.12<-desp.12[,ordem.nomes.desp.muni]
+save(desp.12, file =  file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+rm(desp.12)
+
+load(file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+desp.08[,setdiff(ordem.nomes.desp.muni, names(desp.08))]<-NA
+desp.08<-desp.08[,ordem.nomes.desp.muni]
+save(desp.08, file =  file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+rm(desp.08)
+
+load(file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+desp.04[,setdiff(ordem.nomes.desp.muni, names(desp.04))]<-NA
+desp.04<-desp.04[,ordem.nomes.desp.muni]
+save(desp.04, file =  file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+rm(desp.04)
+```
+
+
+
+
+## IV - Pareamento de eleições gerais e municipais
+
+Nesta seção, pareamos os bancos referentes às eleições no nível federal e estadual com as do nível municipal. Essa é a última etapa do pareamento. Primeiro, as receitas eleitorais serão pareadas e, posteriormente, as despesas.
+
+
+### 1. Receitas
+
+Carregamos os bancos.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+load(file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+load(file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+load(file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+```
+
+Alteramos o nome de algumas variáveis para viabilizar o pareamento.
+```{r }
+rec.14 <- rec.14 %>%  rename(setor.econ.doador.orig=setor.economico.doador.orig,
+                             tipo.documento=tipo.do.documento)
+rec.10 <- rec.10 %>%  rename(setor.econ.doador.orig=setor.economico.doador.orig,
+                             tipo.documento=tipo.do.documento)
+rec.06 <- rec.06 %>%  rename(setor.econ.doador.orig=setor.economico.doador.orig,
+                             tipo.documento=tipo.do.documento)
+rec.02 <- rec.02 %>%  rename(setor.econ.doador.orig=setor.economico.doador.orig,
+                             tipo.documento=tipo.do.documento)
+```
+
+Salvamos os bancos.
+```{r }
+save(rec.14, file = file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+save(rec.10, file = file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+save(rec.06, file = file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+save(rec.02, file = file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+rm(rec.14, rec.10, rec.06, rec.02)
+```
+
+Em todos os bancos, acrescentamos as variáveis exclusivas dos demais bancos. As novas variáveis, no entanto, são preenchidas com `NA`. Posteriormente, ordenaremos as variáveis para viabilizar o pareamento.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+nomes.rec.16<-names(rec.16)
+rm(rec.16)
+
+load(file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+nomes.rec.14<-names(rec.14)
+rec.14[,setdiff(nomes.rec.16, nomes.rec.14)]<-NA
+ordem.nomes.rec<-names(rec.14)
+save(rec.14, file = file.path(dir.proj,"bancos.tratados","rec.14.RData"))
+rm(rec.14)
+
+load(file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+rec.10[,setdiff(ordem.nomes.rec, nomes.rec.14)]<-NA
+rec.10<-rec.10[,ordem.nomes.rec]
+save(rec.10, file = file.path(dir.proj,"bancos.tratados","rec.10.RData"))
+rm(rec.10)
+
+load(file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+rec.06[,setdiff(ordem.nomes.rec, nomes.rec.14)]<-NA
+rec.06<-rec.06[,ordem.nomes.rec]
+save(rec.06, file = file.path(dir.proj,"bancos.tratados","rec.06.RData"))
+rm(rec.06)
+
+load(file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+rec.02[,setdiff(ordem.nomes.rec, nomes.rec.14)]<-NA
+rec.02<-rec.02[,ordem.nomes.rec]
+save(rec.02, file = file.path(dir.proj,"bancos.tratados","rec.02.RData"))
+rm(rec.02)
+
+load(file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+rec.16[,setdiff(ordem.nomes.rec, nomes.rec.16)]<-NA
+rec.16<-rec.16[,ordem.nomes.rec]
+save(rec.16, file = file.path(dir.proj,"bancos.tratados","rec.16.RData"))
+rm(rec.16)
+
+load(file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+rec.12[,setdiff(ordem.nomes.rec, nomes.rec.16)]<-NA
+rec.12<-rec.12[,ordem.nomes.rec]
+save(rec.12, file = file.path(dir.proj,"bancos.tratados","rec.12.RData"))
+rm(rec.12)
+
+load(file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+rec.08[,setdiff(ordem.nomes.rec, nomes.rec.16)]<-NA
+rec.08<-rec.08[,ordem.nomes.rec]
+save(rec.08, file = file.path(dir.proj,"bancos.tratados","rec.08.RData"))
+rm(rec.08)
+
+load(file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+rec.04[,setdiff(ordem.nomes.rec, nomes.rec.16)]<-NA
+rec.04<-rec.04[,ordem.nomes.rec]
+save(rec.04, file = file.path(dir.proj,"bancos.tratados","rec.04.RData"))
+rm(rec.04)
+```
+
+### 2. Despesas
+
+Carregamos os bancos, alteramos o nome de algumas variáveis para viabilizar o pareamento e salvamos os bancos.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+desp.16 <- mutate(desp.16, nome.fornecedor.rec.fed=nome.fornecedor.receita.federal)
+save(desp.16, file = file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+rm(desp.16)
+load(file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+desp.12 <- mutate(desp.12, nome.fornecedor.rec.fed=nome.fornecedor.receita.federal)
+save(desp.12, file = file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+rm(desp.12)
+load(file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+desp.08 <- mutate(desp.08, nome.fornecedor.rec.fed=nome.fornecedor.receita.federal)
+save(desp.08, file = file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+rm(desp.08)
+load(file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+desp.04 <- mutate(desp.04, nome.fornecedor.rec.fed=nome.fornecedor.receita.federal)
+save(desp.04, file = file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+rm(desp.04)
+```
+
+Obtemos os nomes das variáveis das eleições gerais e municipais: 
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.14.RData"))
+nomes.desp.14<-names(desp.14)
+rm(desp.14)
+load(file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+nomes.desp.16<-names(desp.16)
+rm(desp.16)
+```
+
+Em todos os bancos, acrescentamos as variáveis exclusivas dos demais bancos. As novas variáveis, no entanto, são preenchidas com `NA`. Posteriormente, ordenaremos as variáveis para viabilizar o pareamento.
+```{r }
+load(file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+desp.16[,setdiff(nomes.desp.14, nomes.desp.16)]<-NA
+save(desp.16, file = file.path(dir.proj,"bancos.tratados","desp.16.RData"))
+ordem.nomes.desp<-names(desp.16)
+rm(desp.16)
+
+load(file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+desp.12[,setdiff(nomes.desp.14, nomes.desp.16)]<-NA
+desp.12<-desp.12[,ordem.nomes.desp]
+save(desp.12, file = file.path(dir.proj,"bancos.tratados","desp.12.RData"))
+rm(desp.12)
+
+load(file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+desp.08[,setdiff(nomes.desp.14, nomes.desp.16)]<-NA
+desp.08<-desp.08[,ordem.nomes.desp]
+save(desp.08, file = file.path(dir.proj,"bancos.tratados","desp.08.RData"))
+rm(desp.08)
+
+load(file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+desp.04[,setdiff(nomes.desp.14, nomes.desp.16)]<-NA
+desp.04<-desp.04[,ordem.nomes.desp]
+save(desp.04, file = file.path(dir.proj,"bancos.tratados","desp.04.RData"))
+rm(desp.04)
+
+
+load(file.path(dir.proj,"bancos.tratados","desp.14.RData"))
+desp.14[,setdiff(nomes.desp.16, nomes.desp.14)]<-NA
+desp.14<-desp.14[,ordem.nomes.desp]
+save(desp.14, file = file.path(dir.proj,"bancos.tratados","desp.14.RData"))
+rm(desp.14)
+
+load(file.path(dir.proj,"bancos.tratados","desp.10.RData"))
+desp.10[,setdiff(nomes.desp.16, nomes.desp.14)]<-NA
+desp.10<-desp.10[,ordem.nomes.desp]
+save(desp.10, file = file.path(dir.proj,"bancos.tratados","desp.10.RData"))
+rm(desp.10)
+
+load(file.path(dir.proj,"bancos.tratados","desp.06.RData"))
+desp.06[,setdiff(nomes.desp.16, nomes.desp.14)]<-NA
+desp.06<-desp.06[,ordem.nomes.desp]
+save(desp.06, file = file.path(dir.proj,"bancos.tratados","desp.06.RData"))
+rm(desp.06)
+
+load(file.path(dir.proj,"bancos.tratados","desp.02.RData"))
+desp.02[,setdiff(nomes.desp.16, nomes.desp.14)]<-NA
+desp.02<-desp.02[,ordem.nomes.desp]
+save(desp.02, file = file.path(dir.proj,"bancos.tratados","desp.02.RData"))
+rm(desp.02)
+```
+
+FIM.
