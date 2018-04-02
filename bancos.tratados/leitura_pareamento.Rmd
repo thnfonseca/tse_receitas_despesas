@@ -1,13 +1,9 @@
----
-title: "leitura_pareamento"
-author: "FONSECA, T. N."
-date: "29 de março de 2018"
-output: html_document
----
 
 # Download e leitura dos bancos de receita e despesa do TSE
 
-Neste screapt, vamos ler e parear os bancos de dados de receita e despesa provenientes do TSE, a fim de viabilizar a utilização conjunta dos dados em todos os anos eleitorais. O procedimento será empregado em eleição por eleição, devido às especificidades de cada ano eleitoral.
+Neste screapt, vamos ler e parear os bancos de dados de receita e despesa provenientes do TSE, a fim de viabilizar a utilização conjunta dos dados em todos os anos eleitorais. O procedimento será empregado em eleição por eleição, devido às especificidades de cada ano eleitoral. Os procedimentos a seguir pressupõem que o screapt [`download.tse.R`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/download.tse) foi executado anteriormente, alocando os bancos nas pastass indicadas.
+
+O presente screapt insere os dados pareados na pasta `bancos.tratados`, separando-os por ano eleitoral dado o tamanho do arquivo. Bancos com o prefixo `rec.` envolvem receitas, enquanto que bancos com prefixo `desp.` deizem respeito às despesas. 
 
 
 Carregamos o pacote `dplyr` para ler os arquivos e definimos o diretório do projeto. Também é necessário ter o pacote `data.table` instalado.
@@ -17,7 +13,7 @@ library(dplyr)
 
 
 Definimos o diretório para ler e salvar os dados.
-```{r eval=F}
+```{r eval=FALSE}
 dir.proj <- "C:~/tse_receitas_despesas"
 ```
 ```{r results=FALSE, echo=FALSE}
@@ -26,7 +22,7 @@ dir.proj <- "C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas"
 
 # I. Nível federal e estadual
 
-### 1. 2014
+### 1. Eleições de 2014
 
 ### 1.1. Leitura dos bancos de receitas
 
