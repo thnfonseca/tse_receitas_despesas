@@ -1,0 +1,906 @@
+## Inconsistências
+
+### I. Despesas nas eleições gerais e municipais
+
+Neste screapt, minimizaremos inconsistências das despesas de candidatos e partidos nas eleições gerais (federais e estaduais) e municipais desde 2002. Em cada eleição, existem inconsistências diferentes e, portanto, foram aplicados códigos diferentes. Os dados gerados a partir deste screapt não estão disponíveis no GitHub, devido ao tamanho muito grande dos arquivos. Para replicar os bancos basta seguir os códigos a seguir após executar os screapts [`download_tse.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/download.tse), [`leitura_pareamento.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados), [`municipios_ibge.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) e [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
+  
+
+### Eleições gerais de 2014
+
+Definimos o diretório:
+```{r eval=FALSE}
+setwd("~/tse_receitas_despesas")
+```
+```{r results=FALSE, echo=FALSE}
+setwd("C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas")
+```
+
+Carregamos o pacote `dplyr`
+```{r }
+library(dplyr)
+```
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(), "bancos.tratados", "desp.14.RData"))
+```
+  
+
+Padronizamos células vazias com NA:
+```{r }
+for(i in 1:ncol(desp.14)){
+  print(i)
+  desp.14[[i]]<-gsub("^#NULO#$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^#NULO$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^<NA>$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^---$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^------------$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^00000000000000$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^00000000000$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^00000000000001$",NA,as.character(desp.14[[i]]))
+  desp.14[[i]]<-gsub("^00000000001$",NA,as.character(desp.14[[i]]))
+}
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.14 <- desp.14 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Padronizamos CNPJs com 13 dígitos:
+```{r }
+desp.14 <- desp.14 %>% mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                                         paste0("0",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.14<-desp.14%>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9, gsub("-JAN-14","/01/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-FEB-14","/02/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-MAR-14","/03/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-APR-14","/04/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-MAY-14","/05/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-JUN-14","/06/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-JUL-14","/07/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-AUG-14","/08/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-SEP-14","/09/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-OCT-14","/10/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-NOV-14","/11/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-DEC-14","/12/2014",data.despesa), data.despesa))%>%
+  mutate(data.despesa=ifelse(nchar(data.despesa)>9, substr(data.despesa,1,10), data.despesa))
+```
+
+Salvamos o banco:
+```{r }
+save(desp.14, file = file.path(getwd(), "inconsistencias", "desp.14.RData"))
+rm(list = ls())
+```  
+  
+  
+  
+#### Eleições gerais de 2010
+
+Carregamos o banco de 2010:
+```{r }
+load(file.path(getwd(),"bancos.tratados","desp.10.RData"))
+```
+
+Padronizamos células vazias com `NA`:
+```{r }
+for(i in 1:ncol(desp.10)){
+  print(i)
+  desp.10[[i]]<-gsub("^#NULO#$",NA,as.character(desp.10[[i]]))
+  desp.10[[i]]<-gsub("^#NULO$",NA,as.character(desp.10[[i]]))
+  desp.10[[i]]<-gsub("^<NA>$",NA,as.character(desp.10[[i]]))
+  desp.10[[i]]<-gsub("^$",NA,as.character(desp.10[[i]]))
+}
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.10 <- desp.10 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Padronizamos CPFs dos candidatos com menos de 11 dígitos acrescentando zeros à esquerda dos números:
+```{r }
+desp.10 <- desp.10 %>% 
+  mutate(cpf.candidato=ifelse(nchar(cpf.candidato)==10,
+                                    paste0("0",cpf.candidato),cpf.candidato),
+         cpf.candidato=ifelse(nchar(cpf.candidato)==9,
+                                    paste0("00",cpf.candidato),cpf.candidato),
+         cpf.candidato=ifelse(nchar(cpf.candidato)==8,
+                                    paste0("000",cpf.candidato),cpf.candidato),
+         cpf.candidato=ifelse(nchar(cpf.candidato)==7,
+                                    paste0("0000",cpf.candidato),cpf.candidato))
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.10<-desp.10%>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9, gsub("-JAN-14","/01/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-FEB-14","/02/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-MAR-14","/03/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-APR-14","/04/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-MAY-14","/05/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-JUN-14","/06/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-JUL-14","/07/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-AUG-14","/08/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-SEP-14","/09/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-OCT-14","/10/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-NOV-14","/11/2014",data.despesa), data.despesa),
+         data.despesa=ifelse(nchar(data.despesa)==9, gsub("-DEC-14","/12/2014",data.despesa), data.despesa))%>%
+  mutate(data.despesa=ifelse(nchar(data.despesa)>9, substr(data.despesa,1,10), data.despesa))
+```
+
+Padronizamos o CNPJ dos fornecedores. Se o número de dígitos for maior que 11 e menor que 14, inserimos zeros à esquerda dos números para formar 14 dígitos: 
+```{r }
+desp.10<-desp.10%>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+
+Se o número de dígitos do CPF/CNPJ dos fornecerores for menore ou igual a 11, verificamos se existe o padrão de "mil invertido" nos últimos dógitos do documento. Em caso afirmativo, os documentos correspondem a CNPJs e, por isso, acrescentamos zeros à esquerda para formar 14 dígitos.
+```{r }
+desp.10<-desp.10%>% 
+  mutate(deletar=ifelse(nchar(cpf.cnpj.fornecedor)<=11 &
+                                      (grepl("0001",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0002",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0003",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0004",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0005",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0006",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0007",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0008",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl("0009",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                                         grepl(" LTDA", nome.fornecedor) |
+                                         grepl("S/A", nome.fornecedor) |
+                                         grepl("-ME", nome.fornecedor) |
+                                         grepl("S.A", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor))) |
+                                         grepl("S.A.", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                                         grepl(" EPP", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                                         grepl("- ME", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor)))),
+                                      1,0)) %>% #Se o nome do candidato corresponde ao do doador, 
+  mutate(cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==11,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor)) %>%
+  mutate(deletar=NULL)
+```
+
+
+Se os demais CPFs possuírem menos que 11 dígitos, inserimos zeros à esquerda para formar 11 dígitos:
+```{r }
+desp.10 <- desp.10 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==6,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(cpf.cnpj.fornecedor=="0",
+                                    NA,cpf.cnpj.fornecedor))
+```
+**Obs:** os demais CPFs com menos de 6 dígitos permaneceram os mesmos. Podemos substituí-los por `NA` caso seja conveniente.
+
+
+Salvamos o banco:
+```{r }
+save(desp.10, file = file.path(getwd(), "inconsistencias", "desp.10.RData"))
+rm(list = ls())
+```
+
+
+#### Eleições gerais de 2006
+
+Carrega o banco:
+```{r }
+load(file.path(getwd(), "bancos.tratados", "desp.06.RData"))
+```
+
+Padronizamos células vazias com NA:
+```{r }
+for(i in 1:ncol(desp.06)){
+  print(i)
+  desp.06[[i]]<-gsub("^#NULO#$",NA,as.character(desp.06[[i]]))
+  desp.06[[i]]<-gsub("^#NULO$",NA,as.character(desp.06[[i]]))
+  desp.06[[i]]<-gsub("^<NA>$",NA,as.character(desp.06[[i]]))
+  desp.06[[i]]<-gsub("^$",NA,as.character(desp.06[[i]]))
+}
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.06 <- desp.06 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Padronizamos CNPJs dos candidatos substituindo `0` por `NA`:
+```{r }
+desp.06 <- desp.06 %>% 
+  mutate(cpf.candidato=ifelse(cpf.candidato=="0", NA, cpf.candidato))
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.06 <- desp.06 %>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9, paste0("0",data.despesa), data.despesa))
+```
+
+Padronizamos a espécie da despesa:
+```{r }
+desp.06 <- desp.06 %>% mutate(especie.recurso=toupper(especie.recurso))
+```
+
+Padronizamos o CNPJ dos fornecedores. Se o número de dígitos for maior que 11 inserimos zeros para formar um CNPJ de 14 dígitos:
+```{r }
+desp.06 <- desp.06 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+
+Se o número de dígitos for menor ou igual a 11, identificamos que os fornecedores correspondem a empresas e, por isso, inserimos zeros à esquerda do número para formar um CNPJ de 14 dígitos. Também buscamos palavras chaves no nome dos fornecedores para identificar empresas e, consequentemente, aplicar o mesmo procedimento.
+```{r }
+desp.06 <- desp.06 %>% 
+  mutate(deletar=ifelse(nchar(cpf.cnpj.fornecedor)<=11 &
+                          (grepl("0001",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0002",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0003",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0004",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0005",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0006",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0007",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0008",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0009",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl(" LTDA", nome.fornecedor) |
+                             grepl("S/A", nome.fornecedor) |
+                             grepl("-ME", nome.fornecedor) |
+                             grepl("BANCO ", nome.fornecedor) |
+                             grepl("S.A", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor))) |
+                             grepl("S.A.", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" EPP", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" ME", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor)))),
+                        1,0)) %>% #Se o nome do candidato corresponde ao do doador, 
+  mutate(cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==11,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor)) %>%
+  mutate(deletar=NULL, cpf.cnpj.fornecedor=ifelse(cpf.cnpj.fornecedor=="00000000000" | cpf.cnpj.fornecedor=="0" |
+                                                    grepl("000000000",cpf.cnpj.fornecedor), 
+                                                  NA, cpf.cnpj.fornecedor))
+```
+
+Se os demais valores possuírem número de dígitos menor que 11, inserimos zeros para formar CPFs de 11 dígitos:
+```{r }
+desp.06 <- desp.06 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==6,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+
+Substituírmos o nome dos municípios pela nomenclatura do IBGE, cruzando o banco de despesas com o banco de alterações disponível na pasta (`municipios.ibge`)[link] do presente projeto.
+```{r }
+# Carregamos o banco:
+sub<-read.csv2(file.path(getwd(), 'municipios.ibge',"muni.desp.06.alt.csv"))
+
+# Fazemos adaptações para o cruzamento:
+sub <- sub %>% rename(municipio.fornecedor=municipio)
+
+# Cruzamos os dados:
+desp.06 <- desp.06 %>% 
+  left_join(sub, by=c("municipio.fornecedor")) %>%
+  mutate(municipio.fornecedor=ifelse(!is.na(municipio.sub),
+                                     municipio.sub, municipio.fornecedor)) %>%
+  mutate(municipio.sub=NULL) %>% data.frame()
+rm(sub)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.06, file = file.path(getwd(), "inconsistencias","desp.06.RData"))
+rm(list = ls())
+```
+
+
+#### Eleições gerais de 2002
+
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(), "bancos.tratados", "desp.02.RData"))
+```
+
+Padronizamos valores inexistentes com `NA`:
+```{r }
+for(i in 1:ncol(desp.02)){
+  print(i)
+  desp.02[[i]]<-gsub("^#NULO#$",NA,as.character(desp.02[[i]]))
+  desp.02[[i]]<-gsub("^#NULO$",NA,as.character(desp.02[[i]]))
+  desp.02[[i]]<-gsub("^<NA>$",NA,as.character(desp.02[[i]]))
+  desp.02[[i]]<-gsub("^$",NA,as.character(desp.02[[i]]))
+}
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.02 <- desp.02 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+desp.02 <- desp.02 %>% mutate(valor.despesa=ifelse(class(valor.despesa)=="character",
+                                                   as.numeric(gsub(",",".",valor.despesa)),
+                                                   valor.despesa))
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.02 <- desp.02 %>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9, paste0("0",data.despesa), data.despesa))
+```
+
+Limpamos erros em algumas variáveis:
+```{r }
+desp.02 <- desp.02 %>% 
+  mutate(tipo.despesa=gsub("   ","",tipo.despesa),
+         sequencial.candidato=gsub("\"", "", sequencial.candidato),
+         tipo.despesa=gsub("\"", "", tipo.despesa))
+```
+
+
+Padronizamos o CNPJ dos fornecedores.Se o número de dígitos for maior que 11 inserimos zeros para formar um CNPJ de 14 dígitos:
+```{r }
+desp.02 <- desp.02 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+
+Substituímos CNPJs formados apenas por zeros por NA:
+```{r }
+desp.02 <- desp.02 %>%
+  mutate(cpf.cnpj.fornecedor=gsub("00000000000000",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^0000000000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^000000000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^00000000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^0000000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^000000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^00000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^0000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^000000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^00000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^0000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^000$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^00$",NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=gsub("^0$",NA, cpf.cnpj.fornecedor))
+```
+
+
+Se o número de dígitos dos CPF/CNPjs for menor ou igual a 11, verificamos se os fornecedores correspondem a empresas identificando o "mil invertido" nos últimos dígitos do documento ou buscando palavras chaves nos nomes dos forncedores. Em caso afirmativo, inserimos zeros para formar CNPJs com 14 dígitos. Se os demais CPFs possuírem número de dígitos menor que 11, inserimos zeros para formar CPFs de 11 dígitos.
+```{r }
+desp.02 <- desp.02 %>%
+  mutate(deletar=ifelse(nchar(cpf.cnpj.fornecedor)<=11 &
+                          (grepl("0001",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0002",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0003",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0004",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0005",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0006",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0007",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0008",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0009",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("LTDA", nome.fornecedor) |
+                             grepl("LIMITADA", nome.fornecedor) |
+                             grepl(" ME", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor))) |
+                             grepl("-ME", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor))) |
+                             grepl(" ME.", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl("-ME.", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" EPP", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl("-EPP", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" S/A", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" S/A.", substr(nome.fornecedor,nchar(nome.fornecedor)-4,nchar(nome.fornecedor))) |
+                             grepl(" S.A.", substr(nome.fornecedor,nchar(nome.fornecedor)-4,nchar(nome.fornecedor))) |
+                             grepl(" S.A", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor)))),
+                        1,0)) %>% #Se o nome do candidato corresponde ao do doador, 
+  mutate(cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==11,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor)) %>%
+  mutate(cpf.cnpj.fornecedor=ifelse(deletar==0 & nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==0 & nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==0 & nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==0 & nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==0 & nchar(cpf.cnpj.fornecedor)==6,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==0 & nchar(cpf.cnpj.fornecedor)==5,
+                                    paste0("000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor)) %>%
+  mutate(deletar=NULL)
+```
+**Obs:** os demais CPFs com menos de 6 dígitos permaneceram os mesmos. Podemos substituí-los por `NA` caso seja conveniente.
+
+
+Salvamos o banco:
+```{r }
+save(desp.02, file = file.path(getwd(), "inconsistencias", "desp.02.RData"))
+rm(list = ls())
+```
+
+
+
+#### Eleições municipais de 2016
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(), "bancos.tratados", "desp.16.RData"))
+```
+
+Padronizamos células vazias com `NA`
+```{r }
+for(i in 1:ncol(desp.16)){
+  print(i)
+  desp.16[[i]]<-gsub("^#NULO#$",NA,as.character(desp.16[[i]]))
+  desp.16[[i]]<-gsub("^#NULO$",NA,as.character(desp.16[[i]]))
+  desp.16[[i]]<-gsub("^<NA>$",NA,as.character(desp.16[[i]]))
+  desp.16[[i]]<-gsub("^$",NA,as.character(desp.16[[i]]))
+}
+```
+
+Excluímos uma linha que contém os nomes das variáveis em vez de valores
+```{r }
+desp.16 <- desp.16[-nrow(desp.16),]
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.16 <- desp.16 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Excluímos valores com erros da variável data da despesa
+```{r }
+desp.16 <- desp.16 %>% mutate(data.despesa=ifelse(nchar(data.despesa)<=3, NA, data.despesa))
+```
+
+Alteramos o nome da variável tipo.doacao para tipo.executor
+```{r }
+desp.16 <- desp.16 %>% rename(tipo.executor=tipo.doacao)  
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.16 <- desp.16 %>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9, paste0("0",data.despesa), data.despesa))
+```
+
+Padronizamos os CNPJs com número de dígitos igual a 12 ou 13, inserindo zeros à esquerda para formar 14 dígitos:
+```{r }
+desp.16 <- desp.16 %>%
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+**Obs:** Nas eleições de 2016, os CPFs com 11 dígitos realmente correspondem a pessoas físicas
+
+
+Substituímos o nome dos municípios pela nomenclatura do IBGE, cruzando o banco de despesa com o banco de substituições disponível na pasta [`municipios.ibge`](link) do presente projeto:
+```{r }
+# Carregamos o banco:
+sub<-read.csv2(file.path(getwd(), "municipios.ibge", "muni.desp.16.alt.csv"))
+
+#Cruzamos o banco com o nome do município do executor da despesa:
+desp.16 <- desp.16 %>% mutate(municipio=nome.municipio) %>% 
+  left_join(sub, by=c("municipio", "uf")) %>%
+  mutate(nome.municipio=ifelse(!is.na(nome.municipio.sub),
+                               nome.municipio.sub, nome.municipio)) %>%
+  mutate(municipio=NULL, nome.municipio.sub=NULL, uf.sub=NULL)
+
+
+# Carregamos o banco:
+sub <- sub %>% rename(municipio.fornecedor=municipio, uf.fornecedor=uf)
+
+#Cruzamos o banco com o nome do município do fornecedor:
+desp.16 <- desp.16 %>% 
+  left_join(sub, by=c("municipio.fornecedor", "uf.fornecedor")) %>%
+  mutate(municipio.fornecedor=ifelse(!is.na(nome.municipio.sub),
+                                     nome.municipio.sub, municipio.fornecedor)) %>%
+  mutate(nome.municipio.sub=NULL, uf.sub=NULL) %>% data.frame()
+rm(sub)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.16, file = file.path(getwd(), 'inconsistencias',"desp.16.RData"))
+rm(list = ls())
+```
+
+
+
+#### Eleições municipais de 2012
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(),"bancos.tratados","desp.12.RData"))
+```
+
+Padronizamos células vazias com `NA`:
+```{r }
+for(i in 1:ncol(desp.12)){
+  print(i)
+  desp.12[[i]]<-gsub("^#NULO#$",NA,as.character(desp.12[[i]]))
+  desp.12[[i]]<-gsub("^#NULO$",NA,as.character(desp.12[[i]]))
+  desp.12[[i]]<-gsub("^<NA>$",NA,as.character(desp.12[[i]]))
+  desp.12[[i]]<-gsub("^$",NA,as.character(desp.12[[i]]))
+}
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.12 <- desp.12 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Alteramos o nome da variável tipo.doacao para tipo.executor:
+```{r }
+desp.12 <- desp.12 %>% rename(tipo.executor=tipo.doacao)  
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.12 <- desp.12 %>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9, paste0("0",data.despesa), data.despesa))
+```
+
+Padronizamos os CNPJs com número de dígitos igual a 12 ou 13, acrescentando zeros a esquerda do documento para formar 14 dígitos: 
+```{r }
+desp.12 <- desp.12 %>%
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+
+Após consultas verificamos que os CPFs dos fornecedores com menos de 11 dígitos realmente correspondem a pessoas físicas e, por isso, acrescentamos zeros a esquerda dos documentos para formar CPFs de 11 dígitos.
+```{r }
+desp.12 <- desp.12 %>%
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==6,
+                                    paste0("00000",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==5,
+                                    paste0("000000",cpf.cnpj.fornecedor),cpf.cnpj.fornecedor))
+```
+**Obs:** Os demais CPFs continuaram com a mesma quantidade de dígitos e podem ser substituídos futuramente caso seja conveniente.
+
+
+Substituímos o nome dos municípios pela nomenclatura do IBGE, cruzando os dados com o banco de substituições disponível na pasta [`municipios.ibge`](link) do presente projeto:
+```{r }
+# Carregamos o banco:
+sub<-read.csv2(file.path(getwd(),"municipios.ibge","muni.desp.12.alt.csv"))
+
+# Cruzamos os dados com o nome do município dos candidatos:
+desp.12 <- desp.12 %>% mutate(municipio=nome.municipio) %>% 
+  left_join(sub, by=c("municipio", "uf")) %>%
+  mutate(nome.municipio=ifelse(!is.na(nome.municipio.sub),
+                               nome.municipio.sub, nome.municipio)) %>%
+  mutate(municipio=NULL, nome.municipio.sub=NULL, uf.sub=NULL)
+
+# Carregamos o banco:
+sub <- sub %>% rename(municipio.fornecedor=municipio, uf.fornecedor=uf)
+
+# Cruzamos os dados com o nome do município dos candidatos:
+desp.12 <- desp.12 %>% 
+  left_join(sub, by=c("municipio.fornecedor", "uf.fornecedor")) %>%
+  mutate(municipio.fornecedor=ifelse(!is.na(nome.municipio.sub),
+                                     nome.municipio.sub, municipio.fornecedor)) %>%
+  mutate(nome.municipio.sub=NULL, uf.sub=NULL) %>% data.frame()
+rm(sub)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.12, file = file.path(getwd(), "inconsistencias","desp.12.RData"))
+rm(list = ls())
+```
+
+
+#### 2008
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(),"bancos.tratados","desp.08.RData"))
+```
+
+Padronizamos células vazias com `NA`:
+```{r }
+for(i in 1:ncol(desp.08)){
+  print(i)
+  desp.08[[i]]<-gsub("\"","",as.character(desp.08[[i]]))
+  desp.08[[i]]<-gsub("^#NULO#$",NA,as.character(desp.08[[i]]))
+  desp.08[[i]]<-gsub("^#NULO$",NA,as.character(desp.08[[i]]))
+  desp.08[[i]]<-gsub("^<NA>$",NA,as.character(desp.08[[i]]))
+  desp.08[[i]]<-gsub("^$",NA,as.character(desp.08[[i]]))
+}
+```
+
+Padronizamos o valor da despesa:
+```{r }
+desp.08 <- desp.08 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Alteramos o nome da variável tipo.doacao para tipo.executor:
+```{r }
+desp.08 <- desp.08 %>% rename(tipo.executor=tipo.doacao)  
+```
+
+Padronizamos a data da despesa:
+```{r }
+desp.08 <- desp.08 %>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9,
+                             paste0("0",data.despesa),data.despesa))  
+```
+
+Retiramos três linhas com erros:
+```{r }
+desp.08 <- desp.08 %>%
+  filter((tipo.com.dir!="RS" & tipo.com.dir!="SP") | is.na(tipo.com.dir)) %>% data.frame()
+```
+
+# Corrígimos informações inexistentes na variável espécie de recurso:
+```{r }
+desp.08 <- desp.08 %>% 
+  mutate(especie.recurso=gsub("------------","NA",especie.recurso))  
+```
+
+Padronizamos CNPJs e CPFs. Documentos com mais de 11 dígitos correspondem a CNPJs, enquanto aqueles com número de dígitos menor ou igual a 11 dígitos correspondem a CPFs.
+```{r }
+desp.08 <- desp.08 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor)) %>%
+  mutate(cnpj.candidato=ifelse(nchar(cnpj.candidato)==13,
+                               paste0("0", cnpj.candidato), cnpj.candidato)) %>%
+  mutate(cpf.administrador=ifelse(cpf.administrador=="0", NA, cpf.administrador),
+         cpf.administrador=ifelse(nchar(cpf.administrador)==10,
+                               paste0("0", cpf.administrador), cpf.administrador),
+         cpf.administrador=ifelse(nchar(cpf.administrador)==9,
+                                  paste0("00", cpf.administrador), cpf.administrador),
+         cpf.administrador=ifelse(nchar(cpf.administrador)==8,
+                                  paste0("000", cpf.administrador), cpf.administrador),
+         cpf.administrador=ifelse(nchar(cpf.administrador)==7,
+                                  paste0("0000", cpf.administrador), cpf.administrador),
+         cpf.administrador=ifelse(nchar(cpf.administrador)==6,
+                                  paste0("00000", cpf.administrador), cpf.administrador)) %>%
+  mutate(cpf.presidente=ifelse(cpf.presidente=="0", NA, cpf.presidente),
+         cpf.presidente=ifelse(nchar(cpf.presidente)==12,
+                                  paste0("00", cpf.presidente), cpf.presidente),
+         cpf.presidente=ifelse(nchar(cpf.presidente)==10,
+                                  paste0("0", cpf.presidente), cpf.presidente),
+         cpf.presidente=ifelse(nchar(cpf.presidente)==9,
+                                  paste0("00", cpf.presidente), cpf.presidente),
+         cpf.presidente=ifelse(nchar(cpf.presidente)==8,
+                                  paste0("000", cpf.presidente), cpf.presidente))
+```
+
+Substituímos o nome dos municípios pela nomenclatura do IBGE, cruzando com o banco de substituições disponível na pasta [`municipios.ibge`](link):
+```{r }
+# Baixamos o banco:
+sub<-read.csv2(file.path(getwd(), 'municipios.ibge', "muni.desp.08.alt.csv"))
+
+# Cruzamos com o nome do município do executor da despesa:
+desp.08 <- desp.08 %>% mutate(municipio=nome.municipio) %>% 
+  left_join(sub, by=c("municipio", "uf")) %>%
+  mutate(nome.municipio=ifelse(!is.na(nome.municipio.sub),
+                               nome.municipio.sub, nome.municipio)) %>%
+  mutate(municipio=NULL, nome.municipio.sub=NULL, uf.sub=NULL)
+
+# Baixamos o banco:
+sub <- sub %>% rename(municipio.fornecedor=municipio, uf.fornecedor=uf)
+
+# Cruzamos com o nome do município do fornecedor:
+desp.08 <- desp.08 %>% 
+  left_join(sub, by=c("municipio.fornecedor", "uf.fornecedor")) %>%
+  mutate(municipio.fornecedor=ifelse(!is.na(nome.municipio.sub),
+                                     nome.municipio.sub, municipio.fornecedor)) %>%
+  mutate(nome.municipio.sub=NULL, uf.sub=NULL) %>% data.frame()
+rm(sub)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.08, file = file.path(getwd(), "inconsistencias", "desp.08.RData"))
+rm(list = ls())
+```
+
+
+
+#### Eleições municipais de 2004
+
+Carregamos o banco:
+```{r }
+load(file.path(getwd(), "bancos.tratados", "desp.04.RData"))
+```
+
+Padronizamos células vazias com `NA`:
+```{r }
+for(i in 1:ncol(desp.04)){
+  print(i)
+  desp.04[[i]]<-gsub("\"","",as.character(desp.04[[i]]))
+  desp.04[[i]]<-gsub("^#NULO#$",NA,as.character(desp.04[[i]]))
+  desp.04[[i]]<-gsub("^#NULO$",NA,as.character(desp.04[[i]]))
+  desp.04[[i]]<-gsub("^<NA>$",NA,as.character(desp.04[[i]]))
+  desp.04[[i]]<-gsub("^$",NA,as.character(desp.04[[i]]))
+}
+```
+
+Padronizamos o valor da despesa
+```{r }
+desp.04 <- desp.04 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
+```
+
+Alteramos o nome da variável tipo.doacao para tipo.executor
+```{r }
+desp.04 <- desp.04 %>% rename(tipo.executor=tipo.doacao)  
+```
+
+Padronizamos a data da despesa
+```{r }
+desp.04 <- desp.04 %>% 
+  mutate(data.despesa=ifelse(nchar(data.despesa)==9,
+                             paste0("0",data.despesa),data.despesa))  
+```
+
+
+Se o número de dígitos do CPF/CNPJ do fornecedor for menor que 12, identificamos empresas por meio de identificação do "mil invertido" e, por isso, inserimos zeros a esquerda do número para formar CNPJ de 14 dígitos:
+```{r }
+desp.04 <- desp.04 %>%
+  mutate(deletar=ifelse(nchar(cpf.cnpj.fornecedor)<=11 &
+                          (grepl("0001",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0002",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0003",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0004",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0005",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0006",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0007",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0008",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("0009",substr(cpf.cnpj.fornecedor,nchar(cpf.cnpj.fornecedor)-5,nchar(cpf.cnpj.fornecedor)-2)) |
+                             grepl("LTDA", nome.fornecedor) |
+                             grepl("LIMITADA", nome.fornecedor) |
+                             grepl(" ME", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor))) |
+                             grepl("-ME", substr(nome.fornecedor,nchar(nome.fornecedor)-2,nchar(nome.fornecedor))) |
+                             grepl(" ME.", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl("-ME.", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" EPP", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl("-EPP", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" S/A", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor))) |
+                             grepl(" S/A.", substr(nome.fornecedor,nchar(nome.fornecedor)-4,nchar(nome.fornecedor))) |
+                             grepl(" S.A.", substr(nome.fornecedor,nchar(nome.fornecedor)-4,nchar(nome.fornecedor))) |
+                             grepl(" S.A", substr(nome.fornecedor,nchar(nome.fornecedor)-3,nchar(nome.fornecedor)))),
+                        1,0)) %>% #Se o nome do candidato corresponde ao do doador, 
+  mutate(cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==11,
+                                    paste0("000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(deletar==1 & nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000000", cpf.cnpj.fornecedor),cpf.cnpj.fornecedor)) %>%
+  mutate(deletar=NULL)
+```
+
+Os CNPJs com 13 e 12 dígitos realmente correspondem a pessoas jurídicas e, por isso, inserimos zeros a esquerda para formar 14 dígitos:
+```{r }
+desp.04 <- desp.04 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==13,
+                                    paste0("0", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==12,
+                                    paste0("00", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor))
+```
+
+Padronizamos os demais CPFs inserindo zeros a esquerda para formar 11 dígitos:
+```{r }
+desp.04 <- desp.04 %>% 
+  mutate(cpf.cnpj.fornecedor=ifelse(cpf.cnpj.fornecedor=="0", NA, cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==10,
+                                    paste0("0", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==9,
+                                    paste0("00", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==8,
+                                    paste0("000", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==7,
+                                    paste0("0000", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==6,
+                                    paste0("00000", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==5,
+                                    paste0("000000", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor),
+         cpf.cnpj.fornecedor=ifelse(nchar(cpf.cnpj.fornecedor)==4,
+                                    paste0("0000000", cpf.cnpj.fornecedor), cpf.cnpj.fornecedor))
+```
+**Obs:** os CPFs com 3 ou 2 dígitos continuam os mesmos e podem ser substituídos por `NA` caso seja conveniente.
+
+Alguns valores da variável `tipo.despesa` estão preenchidos com `NA`. A partir do `codigo.tipo.despesa` preenchemos as observações vazias da variável `tipo.despesa`:
+```{r }
+# Obtemos os valores do tipo.despesa correspondentes aos valores do codigo.tipo.despesa:
+x <- desp.04 %>% filter(!is.na(tipo.despesa)) %>%
+  group_by(codigo.tipo.despesa, tipo.despesa) %>%
+  summarise(total=n()) %>% data.frame()
+# Cruzamos os dados:
+desp.04 <- desp.04 %>% left_join(x, by="codigo.tipo.despesa") %>%
+  rename(tipo.despesa=tipo.despesa.x, y=tipo.despesa.y) %>%
+  mutate(tipo.despesa=ifelse(is.na(tipo.despesa), y, tipo.despesa)) %>%
+  mutate(total=NULL, y=NULL)
+rm(x)
+```
+
+
+Substituímos o nome dos municípios pela nomenclatura do IBGE, cruzando os dados com o banco de substituições disponível na pasta [`municipios.ibge`](link):
+```{r }
+# Carregamos o banco:
+sub<-read.csv2(file.path(getwd(), "municipios.ibge", "muni.desp.04.alt.csv"))
+# Cruzamos os dados para substituir o nome do município do executor da despesa:
+desp.04 <- desp.04 %>% mutate(municipio=nome.municipio) %>% 
+  left_join(sub, by=c("municipio", "uf")) %>%
+  mutate(nome.municipio=ifelse(!is.na(nome.municipio.sub),
+                               nome.municipio.sub, nome.municipio)) %>%
+  mutate(municipio=NULL, X=NULL, nome.municipio.sub=NULL, uf.sub=NULL)
+
+# Carregamos o banco:
+sub <- sub %>% rename(municipio.fornecedor=municipio, uf.fornecedor=uf)
+# Cruzamos os dados para substituir o nome do município do fornecedor:
+desp.04 <- desp.04 %>% 
+  left_join(sub, by=c("municipio.fornecedor", "uf.fornecedor")) %>%
+  mutate(municipio.fornecedor=ifelse(!is.na(nome.municipio.sub),
+                               nome.municipio.sub, municipio.fornecedor)) %>%
+  mutate(X=NULL, nome.municipio.sub=NULL, uf.sub=NULL) %>% data.frame()
+rm(sub)
+```
+
+Salvamos o banco:
+```{r }
+save(desp.04, file = file.path(getwd(), "inconsistencias", "desp.04.RData"))
+```
+
+FIM.
