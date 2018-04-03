@@ -193,7 +193,7 @@ rec.16 &lt;- rec.16 %&gt;% mutate(cpf.cnpj.doador=ifelse(nchar(cpf.cnpj.doador)=
                                                    paste0(&quot;0&quot;,cpf.cnpj.doador),cpf.cnpj.doador)) %&gt;% 
   left_join(cnpjs.cand.16, by=&quot;cpf.cnpj.doador&quot;) %&gt;%
   mutate(tipo.receita2=ifelse(!is.na(x), &quot;RECURSOS DE OUTROS CANDIDATOS&quot;, tipo.receita2)) %&gt;%
-  mutate(x=NULL)</code></pre>
+  mutate(x=NULL, deletar=NULL)</code></pre>
 <p>Para saber se o doador corresponde a partidos, cruzamos os dados com o banco de CNPJs dos comitês e diretórios partidários, gerado a partir do screapt <a href="https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos"><code>informacoes_candidatos.Rmd</code></a>:</p>
 <pre class="r"><code># Carregamos o banco:
 load(file.path(getwd(), &quot;informacoes.candidatos&quot;, &quot;cnpjs.part.16.RData&quot;))
@@ -201,7 +201,7 @@ cnpjs.part.16 &lt;- cnpjs.part.16 %&gt;% rename(x=nome.candidato, cpf.cnpj.doado
 # Cruzamos:
 rec.16 &lt;- rec.16 %&gt;% left_join(cnpjs.part.16, by=&quot;cpf.cnpj.doador&quot;) %&gt;%
   mutate(tipo.receita2=ifelse(!is.na(x), &quot;RECURSOS DE PARTIDO POLÍTICO&quot;, tipo.receita2)) %&gt;%
-  mutate(x=NULL)</code></pre>
+  mutate(x=NULL, deletar=NULL)</code></pre>
 <p>Para saber se o doador corresponde a candidatos, também cruzamos os dados com o banco de CNPJs dos candidatos individuais, gerado a partir do screapt <a href="https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos"><code>informacoes_candidatos.Rmd</code></a>:</p>
 <pre class="r"><code># Carregamos o banco:
 load(file.path(getwd(), &quot;informacoes.candidatos&quot;, &quot;cpfs.cand.16.RData&quot;))
@@ -210,7 +210,7 @@ cpfs.cand.16 &lt;- cpfs.cand.16 %&gt;% rename(x=NOME_CANDIDATO, cpf.cnpj.doador=
 rec.16 &lt;- rec.16 %&gt;% left_join(cpfs.cand.16, by=&quot;cpf.cnpj.doador&quot;) %&gt;%
   mutate(tipo.receita2=ifelse(!is.na(x) &amp; is.na(tipo.receita2),
                               &quot;RECURSOS DE OUTROS CANDIDATOS&quot;, tipo.receita2)) %&gt;%
-  mutate(x=NULL)</code></pre>
+  mutate(x=NULL, deletar=NULL)</code></pre>
 <p>Verificamos que doações previamente classificadas como “RECURSOS DE PESSOAS FÍSICAS”, “DOAÇÕES PELA INTERNET” e “COMERCIALIZAÇÃO DE BENS OU REALIZAÇÃO DE EVENTOS”, envolvem apenas pessoas físicas:</p>
 <pre class="r"><code>rec.16&lt;-rec.16 %&gt;% mutate(tipo.receita2=ifelse(is.na(tipo.receita2) &amp;
                                                  (tipo.receita==&quot;RECURSOS DE PESSOAS FÍSICAS&quot;|

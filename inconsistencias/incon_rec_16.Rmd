@@ -13,8 +13,9 @@ Chamamos de "pasta" o diretório do projeto:
 ```{r eval=FALSE}
 setwd("C:~/tse_receitas_despesas")
 ```
-```{r results=FALSE, echo=FALSE}
+```{r results=FALSE, echo=FALSE, eval=TRUE}
 setwd("C:/Users/Thiago/Documents/Projetos.GitHub/tse_receitas_despesas")
+setwd("C:/Users/Thiago/Documents/projeto.tse")
 ```
 
 Carregamos o banco:
@@ -97,7 +98,7 @@ rec.16 <- rec.16 %>% mutate(cpf.cnpj.doador=ifelse(nchar(cpf.cnpj.doador)==13,
                                                    paste0("0",cpf.cnpj.doador),cpf.cnpj.doador)) %>% 
   left_join(cnpjs.cand.16, by="cpf.cnpj.doador") %>%
   mutate(tipo.receita2=ifelse(!is.na(x), "RECURSOS DE OUTROS CANDIDATOS", tipo.receita2)) %>%
-  mutate(x=NULL)
+  mutate(x=NULL, deletar=NULL)
 ```
 
 Para saber se o doador corresponde a partidos, cruzamos os dados com o banco de CNPJs dos comitês e diretórios partidários, gerado a partir do screapt [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos):
@@ -108,7 +109,7 @@ cnpjs.part.16 <- cnpjs.part.16 %>% rename(x=nome.candidato, cpf.cnpj.doador=cnpj
 # Cruzamos:
 rec.16 <- rec.16 %>% left_join(cnpjs.part.16, by="cpf.cnpj.doador") %>%
   mutate(tipo.receita2=ifelse(!is.na(x), "RECURSOS DE PARTIDO POLÍTICO", tipo.receita2)) %>%
-  mutate(x=NULL)
+  mutate(x=NULL, deletar=NULL)
 ```
 
 Para saber se o doador corresponde a candidatos, também cruzamos os dados com o banco de CNPJs dos candidatos individuais, gerado a partir do screapt [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos):
@@ -120,7 +121,7 @@ cpfs.cand.16 <- cpfs.cand.16 %>% rename(x=NOME_CANDIDATO, cpf.cnpj.doador=CPF_CA
 rec.16 <- rec.16 %>% left_join(cpfs.cand.16, by="cpf.cnpj.doador") %>%
   mutate(tipo.receita2=ifelse(!is.na(x) & is.na(tipo.receita2),
                               "RECURSOS DE OUTROS CANDIDATOS", tipo.receita2)) %>%
-  mutate(x=NULL)
+  mutate(x=NULL, deletar=NULL)
 ```
 
 Verificamos que doações previamente classificadas como "RECURSOS DE PESSOAS FÍSICAS", "DOAÇÕES PELA INTERNET" e "COMERCIALIZAÇÃO DE BENS OU REALIZAÇÃO DE EVENTOS", envolvem apenas pessoas físicas:
