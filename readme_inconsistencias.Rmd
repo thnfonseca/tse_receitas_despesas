@@ -2,7 +2,6 @@
 
 Os screapts deste projeto pretendem minimizar inconsistências dos bancos de receita e despesa eleitorais de candidatos e partidos provenientes do [Repositório de Dados Eleitorais do TSE](http://www.tse.jus.br/eleitor-e-eleicoes/estatisticas/repositorio-de-dados-eleitorais-1/repositorio-de-dados-eleitorais). Os bancos de dados de cada etapa não estão disponíveis no GitHub, devido ao seu tamanho, que excede o limite da plataforma. No entanto, os bancos estão disponíveis para download no [drive]().
 
-São quatro os tipos de screapt. O primeiro, [download_leitura.Rmd](https://github.com/thnfonseca/tse_receitas_despesas/blob/master/download_leitura.Rmd) ou [download_leitura.Rmd](https://github.com/thnfonseca/tse_receitas_despesas/blob/master/download_leitura.html), é responsável por baixar os bancos do TSE e ordená-los de modo a viabilizar seu pareamento. 
 
 ### 1. Download dos dados
 
@@ -10,26 +9,25 @@ Os dados de receita e despesa provenientes do TSE foram baixados e extraídos de 
 
 ### 2. Pareamento dos dados
 
-O TSE disponibiliza dados de receita e despesa eleitoral de candidatos e partidos desde as eleições gerais de 2002. No entanto, as variáveis dos bancos entre os anos eleitorais não são as mesmas. Por isso, pareamos as variáveis para viabilizar a junção dos bancos, caso qualquer pesquisador pretenda analisar várias eleições em conjunto. Para isso, alteramos os nomes das variáveis, as quais estão descritas no Codebook. Quando um determinado ano eleitoral não possui informações de certa variável, as observações do banco permanecem vazias, representadas por `NA`. O screapt do pareamento e o codebook das variáveis estão disponíveis na pasta [`bancos.tratados`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados) do GitHub.
+O TSE disponibiliza dados de receita e despesa eleitoral de candidatos e partidos desde as eleições gerais de 2002. No entanto, as variáveis dos bancos entre os anos eleitorais não são as mesmas. Por isso, pareamos as variáveis para viabilizar a junção dos bancos, caso qualquer pesquisador pretenda analisar várias eleições em conjunto. Para isso, alteramos os nomes das variáveis, as quais estão descritas no [`codebook`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/inconsistencias). Quando um determinado ano eleitoral não possui informações de certa variável, as observações desta variável permanecem vazias, representadas por `NA`. O screapt do pareamento e o codebook das variáveis estão disponíveis na pasta [`bancos.tratados`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados) do GitHub.
 
 ### 3. Municípios segundo IBGE
 
-Na maior parte dos bancos de despesa e receita, os nomes dos municípios não seguem a nomemclatura do IBGE, o que dificulta seu cruzamento com dados sociodemográficos. Por isso, verificamos quais municípios não correspondem à nomenclatura do IBGE, para que pudessem ser substituídos. Os arquivos em `.csv` nomeados com o sufixo `.alt` apresentam os nomes que serão substituídos quando executados os procediemntos para minimizar inconsistências dos bancos. Os arquivos com nomes dos municípios que sofreram substituição, bem como o screapt responsável por este resultado, estão disponíveis na pasta [`municipios.ibge`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) do GitHub.
+Na maior parte dos bancos de despesa e receita, os nomes dos municípios não seguem a nomenclatura do IBGE, o que dificulta seu cruzamento com dados sociodemográficos. Por isso, verificamos quais municípios não correspondem à nomenclatura do IBGE, para que pudessem ser substituídos. Os arquivos em `.csv` nomeados com o sufixo `.alt` apresentam os nomes que serão substituídos quando executados os procedimentos para minimizar inconsistências dos bancos. Os arquivos com nomes dos municípios que sofreram substituição, bem como o screapt responsável por este resultado, estão disponíveis na pasta [`municipios.ibge`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) do GitHub.
 
 ### 4. CPF/CNPJ de candidatos e partidos
 
-Para alguns anos eleitorais, o TSE disponibiliza o número do CPF ou CNPJ de candidatos e partidos separadamente. A partir destes dados, é possível verificar se os CPF/CNPJs dos bancos de receita são provenientes de candidatos e partidos, para distinguí-los de outros doadores, como pessoas físicas e empresas. O screapt `informacoes_candidatos.Rmd` é responsável pelo download e tratamento destes dados e está disponível na pasta [`informacoes.candidatos`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos) no GitHub. 
+Para alguns anos eleitorais, o TSE disponibiliza o número do CPF ou CNPJ de candidatos e partidos separadamente. A partir destes dados, é possível verificar se os CPF/CNPJs dos bancos de receita são provenientes de candidatos e partidos, para distingui-los de outros doadores, como pessoas físicas e empresas. O screapt `informacoes_candidatos.Rmd` é responsável pelo download e tratamento destes dados e está disponível na pasta [`informacoes.candidatos`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos) no GitHub. 
 
 ### 5. Inconsistências
 
-Os screapts responsáveis por minimizar inconsitências dos bancos de receita e despesa do TSE estão disponíveis na pasta [`inconsistencias`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/inconsistencias) no GitHub. Os bancos e seus respectivos screapts estão dividido segundo os anos eleitorais e a partir da natureza do banco - despesas ou receitas. Os dados envolvem todas as eleições desde 2002, com execeção dos dados de receitas das eleições municipais de 2004, devido ao grande volume de doações sem qualquer identificação dos doadores, seja por nome ou CPF/CNPJ.
+Os screapts responsáveis por minimizar inconsistências dos bancos de receita e despesa do TSE estão disponíveis na pasta [`inconsistencias`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/inconsistencias) no GitHub. Os bancos e seus respectivos screapts estão dividido segundo os anos eleitorais ou partir da natureza do banco - despesas ou receitas. Os dados envolvem todas as eleições desde 2002, com exceção dos dados de receitas das eleições municipais de 2004, devido ao grande volume de doações sem qualquer identificação dos doadores, seja por nome ou CPF/CNPJ.
 
 A maior dificuldade residiu em identificar o tipo de doador, visto que existe uma quantidade muito grande de observações que não condizem com a classificação prévia fornecida pelo TSE.
 
-O nome dos municípios foi padronizado segundo a nomenclatura do IBGE, com exceção dos casos em que todos os nomes já eram compatíveis.
+O nome dos municípios foi padronizado segundo a nomenclatura do IBGE, com exceção dos anos eleitorais em que todos os nomes já eram compatíveis.
 
-As inconsistências foram verificadas manualmente por buscas e seleção de amostras. Ao verificar padrões, pudemos distinguir a categoria correta de doadores. A ordem das alterações deve ser mantida.
+As inconsistências foram verificadas manualmente por buscas e seleção de amostras. Ao verificar padrões, pudemos distinguir a categoria correta de doadores. A ordem das alterações contida nos scrapts deve ser mantida.
 
-Para replicar os bancos basta seguir os códigos a seguir após executar os screapts [`download_tse.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/download.tse), [`leitura_pareamento.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados), [`municipios_ibge.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) e [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
+Para replicar os bancos basta seguir os códigos os screapts [`download_tse.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/download.tse), [`leitura_pareamento.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/bancos.tratados), [`municipios_ibge.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/municipios.ibge) e [`informacoes_candidatos.Rmd`](https://github.com/thnfonseca/tse_receitas_despesas/tree/master/informacoes.candidatos).
 
-FIM.
