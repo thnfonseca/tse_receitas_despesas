@@ -43,6 +43,12 @@ for(i in 1:ncol(desp.14)){
 }
 ```
 
+Retiramos variáveis repetidas:
+```{r }
+desp.14 <- desp.14 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
+```
+
 Padronizamos o valor da despesa:
 ```{r }
 desp.14 <- desp.14 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
@@ -96,6 +102,12 @@ for(i in 1:ncol(desp.10)){
   desp.10[[i]]<-gsub("^<NA>$",NA,as.character(desp.10[[i]]))
   desp.10[[i]]<-gsub("^$",NA,as.character(desp.10[[i]]))
 }
+```
+
+Retiramos variáveis repetidas:
+```{r }
+desp.10 <- desp.10 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
 ```
 
 Padronizamos o valor da despesa:
@@ -222,6 +234,12 @@ for(i in 1:ncol(desp.06)){
 }
 ```
 
+Retiramos variáveis repetidas:
+```{r }
+desp.06 <- desp.06 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
+```
+
 Padronizamos o valor da despesa:
 ```{r }
 desp.06 <- desp.06 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
@@ -346,6 +364,12 @@ for(i in 1:ncol(desp.02)){
   desp.02[[i]]<-gsub("^<NA>$",NA,as.character(desp.02[[i]]))
   desp.02[[i]]<-gsub("^$",NA,as.character(desp.02[[i]]))
 }
+```
+
+Retiramos variáveis repetidas:
+```{r }
+desp.02 <- desp.02 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
 ```
 
 Padronizamos o valor da despesa:
@@ -484,6 +508,12 @@ Excluímos uma linha que contém os nomes das variáveis em vez de valores
 desp.16 <- desp.16[-nrow(desp.16),]
 ```
 
+Retiramos variáveis repetidas:
+```{r }
+desp.16 <- desp.16 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
+```
+
 Padronizamos o valor da despesa:
 ```{r }
 desp.16 <- desp.16 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
@@ -565,6 +595,11 @@ for(i in 1:ncol(desp.12)){
   desp.12[[i]]<-gsub("^<NA>$",NA,as.character(desp.12[[i]]))
   desp.12[[i]]<-gsub("^$",NA,as.character(desp.12[[i]]))
 }
+```
+
+Retiramos variáveis repetidas:
+```{r }
+desp.12 <- desp.12 %>% mutate(tipo.diretorio=NULL)
 ```
 
 Padronizamos o valor da despesa:
@@ -659,6 +694,12 @@ for(i in 1:ncol(desp.08)){
   desp.08[[i]]<-gsub("^<NA>$",NA,as.character(desp.08[[i]]))
   desp.08[[i]]<-gsub("^$",NA,as.character(desp.08[[i]]))
 }
+```
+
+Retiramos variáveis repetidas:
+```{r }
+desp.08 <- desp.08 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
 ```
 
 Padronizamos o valor da despesa:
@@ -772,6 +813,12 @@ for(i in 1:ncol(desp.04)){
   desp.04[[i]]<-gsub("^<NA>$",NA,as.character(desp.04[[i]]))
   desp.04[[i]]<-gsub("^$",NA,as.character(desp.04[[i]]))
 }
+```
+
+Retiramos variáveis repetidas:
+```{r }
+desp.04 <- desp.04 %>% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)
 ```
 
 Padronizamos o valor da despesa

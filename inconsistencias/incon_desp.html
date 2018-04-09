@@ -147,6 +147,9 @@ $(document).ready(function () {
   desp.14[[i]]&lt;-gsub(&quot;^00000000000001$&quot;,NA,as.character(desp.14[[i]]))
   desp.14[[i]]&lt;-gsub(&quot;^00000000001$&quot;,NA,as.character(desp.14[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.14 &lt;- desp.14 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.14 &lt;- desp.14 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Padronizamos CNPJs com 13 dígitos:</p>
@@ -182,6 +185,9 @@ rm(list = ls())</code></pre>
   desp.10[[i]]&lt;-gsub(&quot;^&lt;NA&gt;$&quot;,NA,as.character(desp.10[[i]]))
   desp.10[[i]]&lt;-gsub(&quot;^$&quot;,NA,as.character(desp.10[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.10 &lt;- desp.10 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.10 &lt;- desp.10 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Padronizamos CPFs dos candidatos com menos de 11 dígitos acrescentando zeros à esquerda dos números:</p>
@@ -277,6 +283,9 @@ rm(list = ls())</code></pre>
   desp.06[[i]]&lt;-gsub(&quot;^&lt;NA&gt;$&quot;,NA,as.character(desp.06[[i]]))
   desp.06[[i]]&lt;-gsub(&quot;^$&quot;,NA,as.character(desp.06[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.06 &lt;- desp.06 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.06 &lt;- desp.06 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Padronizamos CNPJs dos candidatos substituindo <code>0</code> por <code>NA</code>:</p>
@@ -369,6 +378,9 @@ rm(list = ls())</code></pre>
   desp.02[[i]]&lt;-gsub(&quot;^&lt;NA&gt;$&quot;,NA,as.character(desp.02[[i]]))
   desp.02[[i]]&lt;-gsub(&quot;^$&quot;,NA,as.character(desp.02[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.02 &lt;- desp.02 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.02 &lt;- desp.02 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))
 desp.02 &lt;- desp.02 %&gt;% mutate(valor.despesa=ifelse(class(valor.despesa)==&quot;character&quot;,
@@ -471,6 +483,9 @@ rm(list = ls())</code></pre>
 }</code></pre>
 <p>Excluímos uma linha que contém os nomes das variáveis em vez de valores</p>
 <pre class="r"><code>desp.16 &lt;- desp.16[-nrow(desp.16),]</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.16 &lt;- desp.16 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.16 &lt;- desp.16 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Excluímos valores com erros da variável data da despesa</p>
@@ -525,6 +540,8 @@ rm(list = ls())</code></pre>
   desp.12[[i]]&lt;-gsub(&quot;^&lt;NA&gt;$&quot;,NA,as.character(desp.12[[i]]))
   desp.12[[i]]&lt;-gsub(&quot;^$&quot;,NA,as.character(desp.12[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.12 &lt;- desp.12 %&gt;% mutate(tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.12 &lt;- desp.12 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Alteramos o nome da variável tipo.doacao para tipo.executor:</p>
@@ -591,6 +608,9 @@ rm(list = ls())</code></pre>
   desp.08[[i]]&lt;-gsub(&quot;^&lt;NA&gt;$&quot;,NA,as.character(desp.08[[i]]))
   desp.08[[i]]&lt;-gsub(&quot;^$&quot;,NA,as.character(desp.08[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.08 &lt;- desp.08 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
 <pre class="r"><code>desp.08 &lt;- desp.08 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Alteramos o nome da variável tipo.doacao para tipo.executor:</p>
@@ -676,6 +696,9 @@ rm(list = ls())</code></pre>
   desp.04[[i]]&lt;-gsub(&quot;^&lt;NA&gt;$&quot;,NA,as.character(desp.04[[i]]))
   desp.04[[i]]&lt;-gsub(&quot;^$&quot;,NA,as.character(desp.04[[i]]))
 }</code></pre>
+<p>Retiramos variáveis repetidas:</p>
+<pre class="r"><code>desp.04 &lt;- desp.04 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
+                              tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa</p>
 <pre class="r"><code>desp.04 &lt;- desp.04 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Alteramos o nome da variável tipo.doacao para tipo.executor</p>
