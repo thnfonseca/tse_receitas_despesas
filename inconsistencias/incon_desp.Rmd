@@ -375,9 +375,6 @@ desp.02 <- desp.02 %>% mutate(nome.fornecedor.receita.federal=NULL,
 Padronizamos o valor da despesa:
 ```{r }
 desp.02 <- desp.02 %>% mutate(valor.despesa=as.numeric(gsub(",",".",valor.despesa)))
-desp.02 <- desp.02 %>% mutate(valor.despesa=ifelse(class(valor.despesa)=="character",
-                                                   as.numeric(gsub(",",".",valor.despesa)),
-                                                   valor.despesa))
 ```
 
 Padronizamos a data da despesa:

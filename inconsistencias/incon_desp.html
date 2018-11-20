@@ -382,10 +382,7 @@ rm(list = ls())</code></pre>
 <pre class="r"><code>desp.02 &lt;- desp.02 %&gt;% mutate(nome.fornecedor.receita.federal=NULL,
                               tipo.diretorio=NULL)</code></pre>
 <p>Padronizamos o valor da despesa:</p>
-<pre class="r"><code>desp.02 &lt;- desp.02 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))
-desp.02 &lt;- desp.02 %&gt;% mutate(valor.despesa=ifelse(class(valor.despesa)==&quot;character&quot;,
-                                                   as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)),
-                                                   valor.despesa))</code></pre>
+<pre class="r"><code>desp.02 &lt;- desp.02 %&gt;% mutate(valor.despesa=as.numeric(gsub(&quot;,&quot;,&quot;.&quot;,valor.despesa)))</code></pre>
 <p>Padronizamos a data da despesa:</p>
 <pre class="r"><code>desp.02 &lt;- desp.02 %&gt;% 
   mutate(data.despesa=ifelse(nchar(data.despesa)==9, paste0(&quot;0&quot;,data.despesa), data.despesa))</code></pre>
